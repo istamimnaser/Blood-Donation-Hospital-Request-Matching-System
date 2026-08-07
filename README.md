@@ -2,12 +2,6 @@
 
 DBMS-II Lab Project. PostgreSQL database design and implementation.
 
-## Status
-
-The project was reset to start fresh from the full ER diagram in the lab
-presentation. Only the database layer exists right now — no backend/frontend
-app code yet.
-
 ## Project structure
 
 ```
@@ -15,6 +9,10 @@ db/
   schema.sql   Tables, constraints, indexes, functions, triggers, procedures, views
   seed.sql     Sample data + example procedure calls
   queries.sql  Example report queries against the views/functions
+backend/       Express API -- a thin wrapper around the schema (no business
+               logic lives here; every route is close to a plain SELECT,
+               CALL, or INSERT)
+frontend/      React (Vite) demo UI -- one tab per part of the schema
 ```
 
 ## Database setup
@@ -29,6 +27,40 @@ psql -U postgres -d blood_donation -f db/seed.sql   # optional sample data
 
 `schema.sql` is safe to re-run — it drops and recreates everything.
 
+## Running the demo app
+
+Backend:
+```bash
+cd backend
+npm install
+cp .env.example .env   # fill in your PG connection details if not the defaults
+npm run dev             # http://localhost:4000
+```
+
+Frontend:
+```bash
+cd frontend
+npm install
+npm run dev             # http://localhost:5173
+```
+
+> This folder's name contains an `&`, which breaks the `.cmd` shims npm
+> generates for binaries on Windows. Both `package.json`s call
+> `node node_modules/vite/bin/vite.js` (frontend) directly instead of the
+> `vite`/`nodemon` shims to avoid it.
+
+The UI has six tabs, one per part of the schema: **Donors**, **Hospitals**,
+**Requests & Matching** (create a request, see `fn_eligible_donors` rank
+donors, match one with `sp_create_match`, record a donation with
+`sp_record_donation`), **Reports** (the four views), **Notifications**, and
+**Audit Log**.
+
+To see the triggers cascade live: open a request in the Requests & Matching
+tab, match a donor, then record a donation for them. Then check the
+Notifications tab (a `donation_confirmed` message appears) and the Audit Log
+tab (the donor/request rows show as updated) without touching either of
+those tabs directly.
+
 ## Schema
 
 Ten tables, matching the ER diagram:
@@ -37,7 +69,10 @@ Ten tables, matching the ER diagram:
 - **blood_compatibility** — donor -> recipient compatibility chart, stored
   as data instead of hard-coded in application logic.
 - **locations** — city/area (lookup table).
-- **donors** — profile, blood group, location, availability, last donation date.
+- **donors** — profile, blood group, location, availability, last donation
+  date, optional `photo_url` (set by the backend when a photo is uploaded
+  through the Donors tab; files are saved to `backend/uploads/` and served
+  at `/uploads/<filename>`).
 - **hospitals** — profile + location.
 - **blood_requests** — a hospital's request for blood: group, units needed,
   urgency, fulfillment status.

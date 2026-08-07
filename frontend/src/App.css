@@ -1,0 +1,191 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  /* Without this, Windows/Chrome auto-dark-mode can repaint native
+     <select> popup lists (and other form controls) using dark-theme
+     text colors while the page's own light backgrounds stay white,
+     making option text invisible. This opts the whole page into the
+     light palette explicitly so that mismatch can't happen. */
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f4f5f7;
+  color: #1a1a1a;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.app-header h1 {
+  margin-bottom: 0.25rem;
+  font-size: 1.5rem;
+}
+
+.subtitle {
+  color: #555;
+  margin-top: 0;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.tab.active {
+  background: #7a1f2b;
+  color: white;
+  border-color: #7a1f2b;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+.hint {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.hint code,
+p code {
+  background: #eee;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.panel {
+  border-color: #7a1f2b;
+}
+
+.form-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.form-grid input,
+.form-grid select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.form-grid select option {
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.donor-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ddd;
+  vertical-align: middle;
+}
+
+.donor-photo-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  color: #777;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  vertical-align: middle;
+}
+
+.photo-preview {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ddd;
+}
+
+button {
+  padding: 0.4rem 0.9rem;
+  border: none;
+  border-radius: 4px;
+  background: #7a1f2b;
+  color: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+button:hover {
+  background: #611723;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid #e0e0e0;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.data-table th {
+  background: #f0f0f0;
+}
+
+.selected-row {
+  background: #fdf1f2;
+}
+
+.json-cell {
+  max-width: 260px;
+  overflow-wrap: break-word;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.error {
+  color: #b00020;
+  font-weight: 600;
+}
+
+.success {
+  color: #1b7a3d;
+  font-weight: 600;
+}

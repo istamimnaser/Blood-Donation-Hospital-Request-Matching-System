@@ -1,18 +1,4 @@
--- Blood Donation & Hospital Request Matching System
--- Full schema per the project ERD: lookup tables, core entities, the
--- donor<->request bridge table, and the supporting history/audit tables.
--- Safe to re-run: drops and recreates everything in dependency order.
-
--- =======================================================================
--- PERSON 1 START
--- Summary (easy English): This part builds the basic tables of the
--- database. First it removes any old tables so the script can be run
--- again safely. Then it creates the small "lookup" tables (blood groups,
--- city/area locations, and the donor-to-recipient compatibility chart)
--- and the main tables (donors, hospitals, blood requests, the donor<->
--- request match table, and donations), with their primary keys, foreign
--- keys, and basic validation rules (CHECK constraints).
--- =======================================================================
+--tamim
 
 DROP VIEW IF EXISTS v_request_fulfillment CASCADE;
 DROP VIEW IF EXISTS v_hospital_summary CASCADE;
@@ -31,10 +17,7 @@ DROP TABLE IF EXISTS blood_compatibility CASCADE;
 DROP TABLE IF EXISTS locations CASCADE;
 DROP TABLE IF EXISTS blood_groups CASCADE;
 
--- ---------------------------------------------------------------------
 -- Lookup tables
--- ---------------------------------------------------------------------
-
 CREATE TABLE blood_groups (
     blood_group_id  SERIAL PRIMARY KEY,
     group_name      VARCHAR(3) NOT NULL UNIQUE
@@ -56,9 +39,7 @@ CREATE TABLE blood_compatibility (
     PRIMARY KEY (donor_blood_group_id, recipient_blood_group_id)
 );
 
--- ---------------------------------------------------------------------
 -- Core entities
--- ---------------------------------------------------------------------
 
 CREATE TABLE donors (
     donor_id           SERIAL PRIMARY KEY,
@@ -70,6 +51,7 @@ CREATE TABLE donors (
     date_of_birth      DATE,
     is_available       BOOLEAN NOT NULL DEFAULT TRUE,
     last_donation_date DATE,
+    photo_url          VARCHAR(255),
     created_at         TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -116,25 +98,11 @@ CREATE TABLE donations (
     created_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- =======================================================================
--- PERSON 1 END
--- =======================================================================
 
--- =======================================================================
--- PERSON 2 START
--- Summary (easy English): This part adds the extra tables that keep a
--- history of what happens in the system: donor_availability (logs every
--- time a donor turns their availability on/off), notifications (messages
--- sent to donors/hospitals), and audit_logs (a record of every insert,
--- update, and delete on the important tables). It also adds indexes so
--- common lookups run faster, and writes the main matching function,
--- fn_eligible_donors, which finds and ranks the donors who qualify for a
--- given blood request.
--- =======================================================================
+--sadab
 
--- ---------------------------------------------------------------------
+
 -- Supporting tables (history / notifications / audit)
--- ---------------------------------------------------------------------
 
 -- History of availability toggles, so "was this donor available on date X"
 -- is answerable instead of only the current donors.is_available flag.
@@ -173,9 +141,7 @@ CREATE TABLE audit_logs (
     changed_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- ---------------------------------------------------------------------
 -- Indexes
--- ---------------------------------------------------------------------
 
 CREATE INDEX idx_donors_blood_group ON donors(blood_group_id);
 CREATE INDEX idx_donors_location ON donors(location_id);
@@ -187,9 +153,7 @@ CREATE INDEX idx_donor_availability_donor ON donor_availability(donor_id);
 CREATE INDEX idx_notifications_recipient ON notifications(recipient_type, recipient_id);
 CREATE INDEX idx_audit_logs_table_record ON audit_logs(table_name, record_id);
 
--- ---------------------------------------------------------------------
 -- Functions
--- ---------------------------------------------------------------------
 
 -- Ranked donor pool for a given request: compatible blood group, available,
 -- and past the 90-day rest period. Same-location and exact-blood-group
@@ -203,13 +167,14 @@ RETURNS TABLE (
     city                 VARCHAR,
     area                 VARCHAR,
     last_donation_date   DATE,
+    photo_url            VARCHAR,
     same_location        BOOLEAN,
     exact_blood_group    BOOLEAN
 ) AS $$
 BEGIN
     RETURN QUERY
     SELECT d.donor_id, d.full_name, d.phone, bg.group_name, l.city, l.area,
-           d.last_donation_date,
+           d.last_donation_date, d.photo_url,
            (d.location_id = h.location_id) AS same_location,
            (d.blood_group_id = r.blood_group_id) AS exact_blood_group
     FROM blood_requests r
@@ -225,23 +190,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- =======================================================================
--- PERSON 2 END
--- =======================================================================
-
--- =======================================================================
--- PERSON 3 START
--- Summary (easy English): This part makes the database react on its own
--- when data changes (triggers). When a donation is added, it updates the
--- donor's last donation date, updates how much of the request is
--- fulfilled, marks the match as completed, and sends the donor a thank-you
--- notification. It also logs every time a donor's availability changes,
--- notifies a hospital when an emergency request is created, notifies a
--- donor when they are matched to a request, checks that every
--- notification is actually sent to a real donor or hospital, and keeps an
--- audit trail of every insert/update/delete on the main tables.
--- =======================================================================
+--irtiaj
 
 
 -- After a donation is recorded: roll last_donation_date forward, fold the
@@ -394,26 +343,7 @@ AFTER INSERT OR UPDATE OR DELETE ON request_matches
 FOR EACH ROW EXECUTE FUNCTION fn_audit_row_change('match_id');
 
 
--- =======================================================================
--- PERSON 3 END
--- =======================================================================
-
--- =======================================================================
--- PERSON 4 START
--- Summary (easy English): This part adds easy, safe ways to use the
--- system and to see reports from it. sp_create_match matches a donor to a
--- request (and refuses to do it if the donor isn't actually eligible).
--- sp_record_donation records a donation. The four views turn raw table
--- data into ready-to-read reports: emergency requests still waiting for
--- blood, full donation history, a summary per hospital, and how far each
--- request is toward being fulfilled. At the end, it fills in the starting
--- data: the 8 blood groups and the standard donor-to-recipient
--- compatibility chart.
--- =======================================================================
-
--- ---------------------------------------------------------------------
--- Procedures
--- ---------------------------------------------------------------------
+--faiyaz
 
 -- Suggests a donor for a request; rejects the call outright if the donor
 -- isn't in that request's eligible pool (see fn_eligible_donors above).
@@ -445,10 +375,7 @@ BEGIN
 END;
 $$;
 
--- ---------------------------------------------------------------------
 -- Reporting views
--- ---------------------------------------------------------------------
-
 CREATE VIEW v_pending_emergency_requests AS
 SELECT r.request_id, h.name AS hospital_name, l.city, l.area,
        bg.group_name AS blood_group, r.units_needed, r.units_fulfilled,
@@ -492,7 +419,9 @@ JOIN hospitals h ON h.hospital_id = r.hospital_id
 JOIN blood_groups bg ON bg.blood_group_id = r.blood_group_id
 ORDER BY r.created_at DESC;
 
--
+-- Lookup data
+
+INSERT INTO blood_groups (group_name) VALUES
     ('A+'), ('A-'), ('B+'), ('B-'), ('AB+'), ('AB-'), ('O+'), ('O-');
 
 -- Standard donor -> recipient compatibility chart.
