@@ -43,11 +43,16 @@ body {
 
 .tab {
   padding: 0.5rem 1rem;
-  border: 1px solid #ccc;
-  background: white;
+  border: 1px solid #d8c3c6;
+  background: #ece1e2;
+  color: #4a2226;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
+}
+
+.tab:hover {
+  background: #ddc9cc;
 }
 
 .tab.active {
