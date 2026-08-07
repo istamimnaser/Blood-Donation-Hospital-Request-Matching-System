@@ -109,14 +109,18 @@ export default function RequestsTab() {
 
   const selectedRequest = requests.find((r) => r.request_id === selectedId);
 
+  const urgencyBadge = { low: 'badge-neutral', medium: 'badge-warning', high: 'badge-warning', emergency: 'badge-danger' };
+  const statusBadge = {
+    pending: 'badge-warning',
+    partially_fulfilled: 'badge-warning',
+    fulfilled: 'badge-success',
+    cancelled: 'badge-neutral',
+  };
+  const matchBadge = { suggested: 'badge-neutral', accepted: 'badge-warning', completed: 'badge-success', declined: 'badge-danger' };
+
   return (
     <section>
       <h2>Blood Requests &amp; Matching</h2>
-      <p className="hint">
-        Create a request (mark it <code>emergency</code> to also fire{' '}
-        <code>trg_notify_emergency_request</code>), then open it below to find eligible donors,
-        match them, and record a donation.
-      </p>
 
       <form className="card form-grid" onSubmit={handleSubmit}>
         <select
@@ -189,8 +193,14 @@ export default function RequestsTab() {
                 <td>{r.hospital_name}</td>
                 <td>{r.blood_group}</td>
                 <td>{r.units_fulfilled} / {r.units_needed}</td>
-                <td>{r.urgency}</td>
-                <td>{r.status}</td>
+                <td>
+                  <span className={`badge ${urgencyBadge[r.urgency] || 'badge-neutral'}`}>{r.urgency}</span>
+                </td>
+                <td>
+                  <span className={`badge ${statusBadge[r.status] || 'badge-neutral'}`}>
+                    {r.status.replace('_', ' ')}
+                  </span>
+                </td>
                 <td>
                   <button onClick={() => openRequest(r)}>Open</button>
                 </td>
@@ -239,8 +249,16 @@ export default function RequestsTab() {
                     <td>{d.full_name}</td>
                     <td>{d.blood_group}</td>
                     <td>{d.city} - {d.area}</td>
-                    <td>{d.same_location ? 'Yes' : 'No'}</td>
-                    <td>{d.exact_blood_group ? 'Yes' : 'No'}</td>
+                    <td>
+                      <span className={`badge ${d.same_location ? 'badge-success' : 'badge-neutral'}`}>
+                        {d.same_location ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge ${d.exact_blood_group ? 'badge-success' : 'badge-neutral'}`}>
+                        {d.exact_blood_group ? 'Yes' : 'No'}
+                      </span>
+                    </td>
                     <td>
                       <button onClick={() => createMatch(d.donor_id)}>Match</button>
                     </td>
@@ -266,7 +284,11 @@ export default function RequestsTab() {
                 {matches.map((m) => (
                   <tr key={m.match_id}>
                     <td>{m.donor_name}</td>
-                    <td>{m.match_status}</td>
+                    <td>
+                      <span className={`badge ${matchBadge[m.match_status] || 'badge-neutral'}`}>
+                        {m.match_status}
+                      </span>
+                    </td>
                     <td>{new Date(m.matched_at).toLocaleString()}</td>
                   </tr>
                 ))}

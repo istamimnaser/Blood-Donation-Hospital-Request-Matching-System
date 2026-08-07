@@ -24,11 +24,6 @@ export default function AuditLogTab() {
   return (
     <section>
       <h2>Audit Log</h2>
-      <p className="hint">
-        Every insert/update/delete on donors, hospitals, blood_requests, donations, and
-        request_matches lands here via <code>fn_audit_row_change()</code>. Try editing a donor or
-        hospital elsewhere in the app, then refresh.
-      </p>
       <button onClick={load}>Refresh</button>
 
       {error && <p className="error">{error}</p>}

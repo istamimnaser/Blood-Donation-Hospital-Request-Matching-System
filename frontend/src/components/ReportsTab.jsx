@@ -38,7 +38,6 @@ export default function ReportsTab() {
   return (
     <section>
       <h2>Reports</h2>
-      <p className="hint">Each table below is a straight SELECT from a reporting view -- no logic runs outside the database.</p>
       <button onClick={loadAll}>Refresh reports</button>
 
       {error && <p className="error">{error}</p>}

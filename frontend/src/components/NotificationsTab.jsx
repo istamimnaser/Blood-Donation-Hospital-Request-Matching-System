@@ -24,11 +24,6 @@ export default function NotificationsTab() {
   return (
     <section>
       <h2>Notifications</h2>
-      <p className="hint">
-        Written automatically by <code>trg_notify_emergency_request</code>,{' '}
-        <code>trg_notify_new_match</code>, and <code>trg_apply_donation</code> -- nothing here is
-        inserted by the frontend.
-      </p>
       <button onClick={load}>Refresh</button>
 
       {error && <p className="error">{error}</p>}

@@ -8,6 +8,7 @@ const emptyForm = {
   blood_group_id: '',
   location_id: '',
   date_of_birth: '',
+  last_donation_date: '',
   is_available: true,
 };
 
@@ -56,6 +57,7 @@ export default function DonorsTab() {
       formData.append('blood_group_id', form.blood_group_id);
       formData.append('location_id', form.location_id);
       formData.append('date_of_birth', form.date_of_birth);
+      formData.append('last_donation_date', form.last_donation_date);
       formData.append('is_available', String(form.is_available));
       if (photo) formData.append('photo', photo);
 
@@ -82,12 +84,6 @@ export default function DonorsTab() {
   return (
     <section>
       <h2>Donors</h2>
-      <p className="hint">
-        Registering a donor fires <code>trg_donor_availability_insert</code>; toggling "Available"
-        below fires <code>trg_donor_availability_update</code> -- both log a row to{' '}
-        <code>donor_availability</code>.
-      </p>
-
       <form className="card form-grid" onSubmit={handleSubmit}>
         <input
           placeholder="Full name"
@@ -112,6 +108,14 @@ export default function DonorsTab() {
           value={form.date_of_birth}
           onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
         />
+        <label>
+          Last donation date:{' '}
+          <input
+            type="date"
+            value={form.last_donation_date}
+            onChange={(e) => setForm({ ...form, last_donation_date: e.target.value })}
+          />
+        </label>
         <select
           value={form.blood_group_id}
           onChange={(e) => setForm({ ...form, blood_group_id: e.target.value })}
@@ -177,7 +181,11 @@ export default function DonorsTab() {
                 <td>{d.blood_group}</td>
                 <td>{d.city} - {d.area}</td>
                 <td>{d.phone}</td>
-                <td>{d.is_available ? 'Yes' : 'No'}</td>
+                <td>
+                  <span className={`badge ${d.is_available ? 'badge-success' : 'badge-neutral'}`}>
+                    {d.is_available ? 'Available' : 'Unavailable'}
+                  </span>
+                </td>
                 <td>{d.last_donation_date ? d.last_donation_date.slice(0, 10) : '-'}</td>
                 <td>
                   <button onClick={() => toggleAvailability(d)}>

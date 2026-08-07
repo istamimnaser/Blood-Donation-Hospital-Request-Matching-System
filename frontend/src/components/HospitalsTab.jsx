@@ -42,8 +42,6 @@ export default function HospitalsTab() {
   return (
     <section>
       <h2>Hospitals</h2>
-      <p className="hint">Every hospital here can post blood requests in the "Requests &amp; Matching" tab.</p>
-
       <form className="card form-grid" onSubmit={handleSubmit}>
         <input
           placeholder="Hospital name"

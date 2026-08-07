@@ -22,8 +22,8 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
+        <span className="brand-mark" aria-hidden="true" />
         <h1>Blood Donation &amp; Hospital Request Matching System</h1>
-        <p className="subtitle">Demo UI for the PostgreSQL database — every screen below is a thin view over tables, functions, triggers, procedures, and views.</p>
       </header>
 
       <nav className="tabs">

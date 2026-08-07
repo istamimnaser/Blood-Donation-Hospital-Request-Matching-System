@@ -40,11 +40,11 @@ router.get('/', async (req, res, next) => {
 // donor_availability row automatically.
 router.post('/', upload.single('photo'), async (req, res, next) => {
   try {
-    const { full_name, email, phone, blood_group_id, location_id, date_of_birth, is_available } = req.body;
+    const { full_name, email, phone, blood_group_id, location_id, date_of_birth, last_donation_date, is_available } = req.body;
     const photo_url = req.file ? `/uploads/${req.file.filename}` : null;
     const { rows } = await pool.query(
-      `INSERT INTO donors (full_name, email, phone, blood_group_id, location_id, date_of_birth, is_available, photo_url)
-       VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, TRUE), $8)
+      `INSERT INTO donors (full_name, email, phone, blood_group_id, location_id, date_of_birth, last_donation_date, is_available, photo_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, TRUE), $9)
        RETURNING *`,
       [
         full_name,
@@ -53,6 +53,7 @@ router.post('/', upload.single('photo'), async (req, res, next) => {
         Number(blood_group_id),
         Number(location_id),
         date_of_birth || null,
+        last_donation_date || null,
         is_available === undefined ? undefined : is_available === 'true' || is_available === true,
         photo_url,
       ]
