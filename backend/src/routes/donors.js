@@ -1,79 +1,47 @@
 const router = require('express').Router();
-const path = require('path');
-const multer = require('multer');
 const pool = require('../db');
+const { requireAuth } = require('../middleware/auth');
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: path.join(__dirname, '..', '..', 'uploads'),
-    filename: (req, file, cb) => {
-      cb(null, `donor_${Date.now()}${path.extname(file.originalname)}`);
-    },
-  }),
-  limits: { fileSize: 3 * 1024 * 1024 }, // 3MB
-  fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files are allowed for donor photos'));
-    }
-    cb(null, true);
-  },
-});
-
-router.get('/', async (req, res, next) => {
+router.get('/me', requireAuth('donor'), async (req, res, next) => {
   try {
-    const { rows } = await pool.query(`
-      SELECT d.donor_id, d.full_name, d.email, d.phone, bg.group_name AS blood_group,
-             l.city, l.area, d.is_available, d.last_donation_date, d.photo_url, d.created_at
-      FROM donors d
-      JOIN blood_groups bg ON bg.blood_group_id = d.blood_group_id
-      JOIN locations l ON l.location_id = d.location_id
-      ORDER BY d.donor_id DESC
-    `);
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Sent as multipart/form-data so an optional photo file can ride along.
-// trg_donor_availability_insert fires on this and logs the first
-// donor_availability row automatically.
-router.post('/', upload.single('photo'), async (req, res, next) => {
-  try {
-    const { full_name, email, phone, blood_group_id, location_id, date_of_birth, last_donation_date, is_available } = req.body;
-    const photo_url = req.file ? `/uploads/${req.file.filename}` : null;
     const { rows } = await pool.query(
-      `INSERT INTO donors (full_name, email, phone, blood_group_id, location_id, date_of_birth, last_donation_date, is_available, photo_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, TRUE), $9)
-       RETURNING *`,
-      [
-        full_name,
-        email || null,
-        phone,
-        Number(blood_group_id),
-        Number(location_id),
-        date_of_birth || null,
-        last_donation_date || null,
-        is_available === undefined ? undefined : is_available === 'true' || is_available === true,
-        photo_url,
-      ]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Toggling is_available fires trg_donor_availability_update, which
-// appends a row to donor_availability.
-router.patch('/:id', async (req, res, next) => {
-  try {
-    const { is_available } = req.body;
-    const { rows } = await pool.query(
-      `UPDATE donors SET is_available = $1 WHERE donor_id = $2 RETURNING *`,
-      [is_available, req.params.id]
+      `SELECT d.donor_id, d.full_name, d.email, d.phone, d.blood_group_id, bg.group_name AS blood_group,
+              d.location_id, l.city, l.area, d.date_of_birth, d.is_available, d.last_donation_date, d.created_at
+       FROM donors d
+       JOIN blood_groups bg ON bg.blood_group_id = d.blood_group_id
+       JOIN locations l ON l.location_id = d.location_id
+       WHERE d.donor_id = $1`,
+      [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Donor not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Self-service update: donors can change their own location, availability,
+// last donation date, and phone. Changing is_available fires
+// trg_donor_availability_update, which appends a donor_availability row.
+router.patch('/me', requireAuth('donor'), async (req, res, next) => {
+  try {
+    const current = await pool.query('SELECT * FROM donors WHERE donor_id = $1', [req.user.id]);
+    if (!current.rows[0]) return res.status(404).json({ error: 'Donor not found' });
+    const existing = current.rows[0];
+
+    const {
+      location_id = existing.location_id,
+      last_donation_date = existing.last_donation_date,
+      phone = existing.phone,
+      is_available = existing.is_available,
+    } = req.body;
+
+    const { rows } = await pool.query(
+      `UPDATE donors SET location_id = $1, last_donation_date = $2, phone = $3, is_available = $4
+       WHERE donor_id = $5
+       RETURNING donor_id, full_name, email, phone, blood_group_id, location_id, date_of_birth, is_available, last_donation_date, created_at`,
+      [Number(location_id), last_donation_date || null, phone, is_available, req.user.id]
+    );
     res.json(rows[0]);
   } catch (err) {
     next(err);

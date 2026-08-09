@@ -13,12 +13,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Uploading donor photos
-app.use(
-  '/uploads',
-  express.static(path.join(__dirname, '..', 'uploads'))
-);
-
 
 // CHecking health of the server
 
@@ -47,6 +41,7 @@ app.get('/api/health', async (req, res) => {
 
 // Adding required API paths
 
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/lookups', require('./routes/lookups'));
 app.use('/api/donors', require('./routes/donors'));
 app.use('/api/hospitals', require('./routes/hospitals'));

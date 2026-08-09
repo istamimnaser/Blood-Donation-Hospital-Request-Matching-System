@@ -1,30 +1,18 @@
 const router = require('express').Router();
 const pool = require('../db');
+const { requireAuth } = require('../middleware/auth');
 
-router.get('/', async (req, res, next) => {
+router.get('/me', requireAuth('hospital'), async (req, res, next) => {
   try {
-    const { rows } = await pool.query(`
-      SELECT h.hospital_id, h.name, l.city, l.area, h.contact_phone, h.email, h.created_at
-      FROM hospitals h
-      JOIN locations l ON l.location_id = h.location_id
-      ORDER BY h.hospital_id DESC
-    `);
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/', async (req, res, next) => {
-  try {
-    const { name, location_id, contact_phone, email } = req.body;
     const { rows } = await pool.query(
-      `INSERT INTO hospitals (name, location_id, contact_phone, email)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [name, location_id, contact_phone, email || null]
+      `SELECT h.hospital_id, h.name, h.location_id, l.city, l.area, h.contact_phone, h.email, h.created_at
+       FROM hospitals h
+       JOIN locations l ON l.location_id = h.location_id
+       WHERE h.hospital_id = $1`,
+      [req.user.id]
     );
-    res.status(201).json(rows[0]);
+    if (!rows[0]) return res.status(404).json({ error: 'Hospital not found' });
+    res.json(rows[0]);
   } catch (err) {
     next(err);
   }

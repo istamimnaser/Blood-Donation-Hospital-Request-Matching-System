@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
-import { api, photoUrl } from '../api.js';
+import { api, hospitalApi, matchApi } from '../api.js';
 
-const emptyForm = { hospital_id: '', blood_group_id: '', units_needed: 1, urgency: 'medium', needed_by: '' };
+const emptyForm = { blood_group_id: '', units_needed: 1, urgency: 'medium' };
 const emptyDonation = { donor_id: '', units_donated: 1, donation_date: '' };
 
-export default function RequestsTab() {
+const urgencyBadge = { low: 'badge-neutral', medium: 'badge-warning', high: 'badge-warning', emergency: 'badge-danger' };
+const statusBadge = {
+  pending: 'badge-warning',
+  partially_fulfilled: 'badge-warning',
+  fulfilled: 'badge-success',
+  cancelled: 'badge-neutral',
+};
+const matchBadge = { suggested: 'badge-neutral', accepted: 'badge-warning', completed: 'badge-success', declined: 'badge-danger' };
+
+export default function HospitalDashboard() {
   const [requests, setRequests] = useState([]);
-  const [hospitals, setHospitals] = useState([]);
   const [bloodGroups, setBloodGroups] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
@@ -22,9 +30,8 @@ export default function RequestsTab() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [r, h, bg] = await Promise.all([api.bloodRequests(), api.hospitals(), api.bloodGroups()]);
+      const [r, bg] = await Promise.all([hospitalApi.myRequests(), api.bloodGroups()]);
       setRequests(r);
-      setHospitals(h);
       setBloodGroups(bg);
     } catch (err) {
       setError(err.message);
@@ -41,12 +48,10 @@ export default function RequestsTab() {
     e.preventDefault();
     setError('');
     try {
-      await api.createBloodRequest({
+      await hospitalApi.createRequest({
         ...form,
-        hospital_id: Number(form.hospital_id),
         blood_group_id: Number(form.blood_group_id),
         units_needed: Number(form.units_needed),
-        needed_by: form.needed_by || null,
       });
       setForm(emptyForm);
       loadAll();
@@ -65,7 +70,7 @@ export default function RequestsTab() {
 
   async function refreshPanel(requestId) {
     try {
-      const [e, m] = await Promise.all([api.eligibleDonors(requestId), api.matchesForRequest(requestId)]);
+      const [e, m] = await Promise.all([hospitalApi.eligibleDonors(requestId), matchApi.forRequest(requestId)]);
       setEligible(e);
       setMatches(m);
     } catch (err) {
@@ -77,9 +82,7 @@ export default function RequestsTab() {
     setPanelError('');
     setPanelMessage('');
     try {
-      // sp_create_match rejects donors who aren't in the eligible pool --
-      // try it on a random donor from the Donors tab to see that reject.
-      await api.createMatch({ request_id: selectedId, donor_id: donorId });
+      await matchApi.create({ request_id: selectedId, donor_id: donorId });
       setPanelMessage('Match created. A notification was sent to the donor.');
       refreshPanel(selectedId);
     } catch (err) {
@@ -108,33 +111,13 @@ export default function RequestsTab() {
   }
 
   const selectedRequest = requests.find((r) => r.request_id === selectedId);
-
-  const urgencyBadge = { low: 'badge-neutral', medium: 'badge-warning', high: 'badge-warning', emergency: 'badge-danger' };
-  const statusBadge = {
-    pending: 'badge-warning',
-    partially_fulfilled: 'badge-warning',
-    fulfilled: 'badge-success',
-    cancelled: 'badge-neutral',
-  };
-  const matchBadge = { suggested: 'badge-neutral', accepted: 'badge-warning', completed: 'badge-success', declined: 'badge-danger' };
+  const acceptedDonors = matches.filter((m) => m.match_status === 'accepted');
 
   return (
     <section>
-      <h2>Blood Requests &amp; Matching</h2>
+      <h2>My requests</h2>
 
       <form className="card form-grid" onSubmit={handleSubmit}>
-        <select
-          value={form.hospital_id}
-          onChange={(e) => setForm({ ...form, hospital_id: e.target.value })}
-          required
-        >
-          <option value="">Hospital</option>
-          {hospitals.map((h) => (
-            <option key={h.hospital_id} value={h.hospital_id}>
-              {h.name}
-            </option>
-          ))}
-        </select>
         <select
           value={form.blood_group_id}
           onChange={(e) => setForm({ ...form, blood_group_id: e.target.value })}
@@ -161,11 +144,6 @@ export default function RequestsTab() {
           <option value="high">high</option>
           <option value="emergency">emergency</option>
         </select>
-        <input
-          type="date"
-          value={form.needed_by}
-          onChange={(e) => setForm({ ...form, needed_by: e.target.value })}
-        />
         <button type="submit">Create request</button>
       </form>
 
@@ -173,12 +151,13 @@ export default function RequestsTab() {
 
       {loading ? (
         <p>Loading...</p>
+      ) : requests.length === 0 ? (
+        <p className="hint">No requests yet.</p>
       ) : (
         <table className="data-table">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Hospital</th>
               <th>Blood group</th>
               <th>Needed / Fulfilled</th>
               <th>Urgency</th>
@@ -190,7 +169,6 @@ export default function RequestsTab() {
             {requests.map((r) => (
               <tr key={r.request_id} className={r.request_id === selectedId ? 'selected-row' : ''}>
                 <td>{r.request_id}</td>
-                <td>{r.hospital_name}</td>
                 <td>{r.blood_group}</td>
                 <td>{r.units_fulfilled} / {r.units_needed}</td>
                 <td>
@@ -212,10 +190,7 @@ export default function RequestsTab() {
 
       {selectedRequest && (
         <div className="card panel">
-          <h3>
-            Request #{selectedRequest.request_id} -- {selectedRequest.blood_group} for{' '}
-            {selectedRequest.hospital_name}
-          </h3>
+          <h3>Request #{selectedRequest.request_id} -- {selectedRequest.blood_group}</h3>
 
           {panelError && <p className="error">{panelError}</p>}
           {panelMessage && <p className="success">{panelMessage}</p>}
@@ -227,7 +202,6 @@ export default function RequestsTab() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Photo</th>
                   <th>Donor</th>
                   <th>Group</th>
                   <th>Location</th>
@@ -239,13 +213,6 @@ export default function RequestsTab() {
               <tbody>
                 {eligible.map((d) => (
                   <tr key={d.donor_id}>
-                    <td>
-                      {d.photo_url ? (
-                        <img src={photoUrl(d.photo_url)} alt={d.full_name} className="donor-photo" />
-                      ) : (
-                        <span className="donor-photo-placeholder">N/A</span>
-                      )}
-                    </td>
                     <td>{d.full_name}</td>
                     <td>{d.blood_group}</td>
                     <td>{d.city} - {d.area}</td>
@@ -260,7 +227,7 @@ export default function RequestsTab() {
                       </span>
                     </td>
                     <td>
-                      <button onClick={() => createMatch(d.donor_id)}>Match</button>
+                      <button onClick={() => createMatch(d.donor_id)}>Suggest match</button>
                     </td>
                   </tr>
                 ))}
@@ -297,34 +264,38 @@ export default function RequestsTab() {
           )}
 
           <h4>Record a donation (sp_record_donation)</h4>
-          <form className="form-grid" onSubmit={recordDonation}>
-            <select
-              value={donationForm.donor_id}
-              onChange={(e) => setDonationForm({ ...donationForm, donor_id: e.target.value })}
-              required
-            >
-              <option value="">Donor</option>
-              {matches.map((m) => (
-                <option key={m.donor_id} value={m.donor_id}>
-                  {m.donor_name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min="1"
-              placeholder="Units donated"
-              value={donationForm.units_donated}
-              onChange={(e) => setDonationForm({ ...donationForm, units_donated: e.target.value })}
-              required
-            />
-            <input
-              type="date"
-              value={donationForm.donation_date}
-              onChange={(e) => setDonationForm({ ...donationForm, donation_date: e.target.value })}
-            />
-            <button type="submit">Record donation</button>
-          </form>
+          {acceptedDonors.length === 0 ? (
+            <p className="hint">A donor needs to accept a match before you can record their donation.</p>
+          ) : (
+            <form className="form-grid" onSubmit={recordDonation}>
+              <select
+                value={donationForm.donor_id}
+                onChange={(e) => setDonationForm({ ...donationForm, donor_id: e.target.value })}
+                required
+              >
+                <option value="">Donor</option>
+                {acceptedDonors.map((m) => (
+                  <option key={m.donor_id} value={m.donor_id}>
+                    {m.donor_name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                min="1"
+                placeholder="Units donated"
+                value={donationForm.units_donated}
+                onChange={(e) => setDonationForm({ ...donationForm, units_donated: e.target.value })}
+                required
+              />
+              <input
+                type="date"
+                value={donationForm.donation_date}
+                onChange={(e) => setDonationForm({ ...donationForm, donation_date: e.target.value })}
+              />
+              <button type="submit">Record donation</button>
+            </form>
+          )}
         </div>
       )}
     </section>

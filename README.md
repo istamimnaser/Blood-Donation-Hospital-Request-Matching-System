@@ -6,9 +6,14 @@ DBMS-II Lab Project. PostgreSQL database design and implementation.
 
 ```
 db/
-  schema.sql   Tables, constraints, indexes, functions, triggers, procedures, views
-  seed.sql     Sample data + example procedure calls
-  queries.sql  Example report queries against the views/functions
+  schema.sql                       Entry point -- includes the files below in order
+  schema/
+    01_core_tables.sql             Drops + core tables (blood_groups, locations, donors, hospitals, blood_requests, ...)
+    02_support_and_functions.sql   Supporting tables (donor_availability, notifications, audit_logs), indexes, fn_eligible_donors
+    03_triggers.sql                Triggers + trigger functions
+    04_procedures_views_data.sql   Procedures, reporting views, lookup data
+  seed.sql                         Sample data + example procedure calls
+  queries.sql                      Example report queries against the views/functions
 backend/       Express API -- a thin wrapper around the schema (no business
                logic lives here; every route is close to a plain SELECT,
                CALL, or INSERT)
@@ -49,17 +54,28 @@ npm run dev             # http://localhost:5173
 > `node node_modules/vite/bin/vite.js` (frontend) directly instead of the
 > `vite`/`nodemon` shims to avoid it.
 
-The UI has six tabs, one per part of the schema: **Donors**, **Hospitals**,
-**Requests & Matching** (create a request, see `fn_eligible_donors` rank
-donors, match one with `sp_create_match`, record a donation with
-`sp_record_donation`), **Reports** (the four views), **Notifications**, and
-**Audit Log**.
+## Accounts
 
-To see the triggers cascade live: open a request in the Requests & Matching
-tab, match a donor, then record a donation for them. Then check the
-Notifications tab (a `donation_confirmed` message appears) and the Audit Log
-tab (the donor/request rows show as updated) without touching either of
-those tabs directly.
+Donors and hospitals are separate account types, each with their own
+signup/login (email + password, JWT-based). Every seeded account (see
+`db/seed.sql`) uses the demo password **`password123`** — e.g. log in as
+donor `rafiq@example.com` or hospital `contact@dmch.example`.
+
+- **Donor dashboard** — edit phone/location/availability/last donation
+  date, view matches suggested by hospitals, accept or decline them.
+- **Hospital dashboard** — create blood requests, view `fn_eligible_donors`
+  for a request, suggest a match (`sp_create_match`), and record a
+  donation (`sp_record_donation`) once a donor has accepted.
+- **Reports**, **Notifications**, and **Audit Log** tabs stay available
+  to any logged-in account (Notifications is scoped to the logged-in
+  donor/hospital).
+
+To see the triggers cascade live: as a hospital, open a request, suggest a
+match, then log in as that donor and accept it. Back in the hospital
+dashboard, record a donation for them. Then check the Notifications tab
+(a `donation_confirmed` message appears) and the Audit Log tab (the
+donor/request rows show as updated) without touching either of those tabs
+directly.
 
 ## Schema
 
@@ -69,11 +85,9 @@ Ten tables, matching the ER diagram:
 - **blood_compatibility** — donor -> recipient compatibility chart, stored
   as data instead of hard-coded in application logic.
 - **locations** — city/area (lookup table).
-- **donors** — profile, blood group, location, availability, last donation
-  date, optional `photo_url` (set by the backend when a photo is uploaded
-  through the Donors tab; files are saved to `backend/uploads/` and served
-  at `/uploads/<filename>`).
-- **hospitals** — profile + location.
+- **donors** — profile, login credentials (`email` + bcrypt `password_hash`),
+  blood group, location, availability, last donation date.
+- **hospitals** — profile, login credentials, location.
 - **blood_requests** — a hospital's request for blood: group, units needed,
   urgency, fulfillment status.
 - **request_matches** — bridge table connecting donors to requests
@@ -112,7 +126,7 @@ Ten tables, matching the ER diagram:
   (a plain foreign key can't express that, since it targets one of two tables).
 - `trg_audit_*` (donors, hospitals, blood_requests, donations,
   request_matches) — logs every row change to `audit_logs` via one shared
-  trigger function.
+  trigger function (`password_hash` is stripped out before logging).
 
 **Views** (`db/queries.sql` has example usage of all of these)
 - `v_pending_emergency_requests`

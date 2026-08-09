@@ -1,29 +1,29 @@
 const BASE =
   import.meta.env.VITE_API_URL || '/api';
 
-function getApiOrigin() {
-  if (BASE.startsWith('http://') || BASE.startsWith('https://')) {
-    return BASE.replace(/\/api\/?$/, '');
-  }
+const TOKEN_KEY = 'auth_token';
 
-  return '';
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
 }
 
-const API_ORIGIN = getApiOrigin();
+export function setToken(token) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
 
 async function request(path, options = {}) {
-  const isFormData = options.body instanceof FormData;
+  const token = getToken();
 
   try {
     const res = await fetch(`${BASE}${path}`, {
       ...options,
 
-      headers: isFormData
-        ? options.headers
-        : {
-            'Content-Type': 'application/json',
-            ...options.headers,
-          },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
     });
 
     const contentType =
@@ -56,13 +56,51 @@ async function request(path, options = {}) {
   }
 }
 
-// Donor images are served by the Express backend.
-// In development, Vite uploads to port 4000. Because the backend port is 4000
-export function photoUrl(path) {
-  if (!path) return null;
+export const authApi = {
+  login: (body) =>
+    request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
 
-  return `${API_ORIGIN}${path}`;
-}
+  signupDonor: (body) =>
+    request('/auth/signup/donor', { method: 'POST', body: JSON.stringify(body) }),
+
+  signupHospital: (body) =>
+    request('/auth/signup/hospital', { method: 'POST', body: JSON.stringify(body) }),
+};
+
+export const donorApi = {
+  me: () => request('/donors/me'),
+
+  updateMe: (body) =>
+    request('/donors/me', { method: 'PATCH', body: JSON.stringify(body) }),
+};
+
+export const hospitalApi = {
+  me: () => request('/hospitals/me'),
+
+  myRequests: () => request('/blood-requests/mine'),
+
+  createRequest: (body) =>
+    request('/blood-requests', { method: 'POST', body: JSON.stringify(body) }),
+
+  eligibleDonors: (requestId) =>
+    request(`/blood-requests/${requestId}/eligible-donors`),
+};
+
+export const matchApi = {
+  forRequest: (requestId) =>
+    request(`/matches?request_id=${requestId}`),
+
+  mine: () => request('/matches/mine'),
+
+  create: (body) =>
+    request('/matches', { method: 'POST', body: JSON.stringify(body) }),
+
+  respond: (matchId, status) =>
+    request(`/matches/${matchId}/respond`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+};
 
 export const api = {
   health: () => request('/health'),
@@ -72,55 +110,6 @@ export const api = {
 
   locations: () =>
     request('/lookups/locations'),
-
-  donors: () =>
-    request('/donors'),
-
-  createDonor: (formData) =>
-    request('/donors', {
-      method: 'POST',
-      body: formData,
-    }),
-
-  setDonorAvailability: (id, is_available) =>
-    request(`/donors/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ is_available }),
-    }),
-
-  hospitals: () =>
-    request('/hospitals'),
-
-  createHospital: (body) =>
-    request('/hospitals', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-
-  bloodRequests: () =>
-    request('/blood-requests'),
-
-  createBloodRequest: (body) =>
-    request('/blood-requests', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-
-  eligibleDonors: (requestId) =>
-    request(
-      `/blood-requests/${requestId}/eligible-donors`
-    ),
-
-  matchesForRequest: (requestId) =>
-    request(
-      `/matches?request_id=${requestId}`
-    ),
-
-  createMatch: (body) =>
-    request('/matches', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
 
   recordDonation: (body) =>
     request('/donations', {

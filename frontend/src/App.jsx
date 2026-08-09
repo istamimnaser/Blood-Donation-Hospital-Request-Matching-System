@@ -1,29 +1,66 @@
 import { useState } from 'react';
-import DonorsTab from './components/DonorsTab.jsx';
-import HospitalsTab from './components/HospitalsTab.jsx';
-import RequestsTab from './components/RequestsTab.jsx';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import LoginPage from './components/LoginPage.jsx';
+import DonorSignupPage from './components/DonorSignupPage.jsx';
+import HospitalSignupPage from './components/HospitalSignupPage.jsx';
+import DonorDashboard from './components/DonorDashboard.jsx';
+import HospitalDashboard from './components/HospitalDashboard.jsx';
 import ReportsTab from './components/ReportsTab.jsx';
 import NotificationsTab from './components/NotificationsTab.jsx';
 import AuditLogTab from './components/AuditLogTab.jsx';
 
+const AUTH_PAGES = {
+  login: LoginPage,
+  'signup-donor': DonorSignupPage,
+  'signup-hospital': HospitalSignupPage,
+};
+
 const TABS = [
-  { id: 'donors', label: 'Donors', Component: DonorsTab },
-  { id: 'hospitals', label: 'Hospitals', Component: HospitalsTab },
-  { id: 'requests', label: 'Requests & Matching', Component: RequestsTab },
+  { id: 'dashboard', label: 'Dashboard' },
   { id: 'reports', label: 'Reports', Component: ReportsTab },
   { id: 'notifications', label: 'Notifications', Component: NotificationsTab },
   { id: 'audit', label: 'Audit Log', Component: AuditLogTab },
 ];
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState('donors');
-  const Active = TABS.find((t) => t.id === activeTab).Component;
+function Brand() {
+  return (
+    <>
+      <img src="/crescent.jpg" alt="" className="brand-mark" />
+      <div className="brand-text">
+        <h1>Blood Donation &amp; Hospital Request Matching</h1>
+        <p className="tagline">Connecting willing donors with hospitals that need them</p>
+      </div>
+    </>
+  );
+}
+
+function AppShell() {
+  const { isAuthenticated, role, logout } = useAuth();
+  const [authView, setAuthView] = useState('login');
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  if (!isAuthenticated) {
+    const AuthPage = AUTH_PAGES[authView];
+    return (
+      <div className="app">
+        <header className="app-header">
+          <Brand />
+        </header>
+        <main className="tab-panel">
+          <AuthPage onSwitch={setAuthView} />
+        </main>
+      </div>
+    );
+  }
+
+  const Active = activeTab === 'dashboard'
+    ? (role === 'donor' ? DonorDashboard : HospitalDashboard)
+    : TABS.find((t) => t.id === activeTab).Component;
 
   return (
     <div className="app">
       <header className="app-header">
-        <span className="brand-mark" aria-hidden="true" />
-        <h1>Blood Donation &amp; Hospital Request Matching System</h1>
+        <Brand />
       </header>
 
       <nav className="tabs">
@@ -36,11 +73,22 @@ export default function App() {
             {t.label}
           </button>
         ))}
+        <button className="tab tab-signout" onClick={logout}>
+          Log out
+        </button>
       </nav>
 
       <main className="tab-panel">
         <Active />
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   );
 }
