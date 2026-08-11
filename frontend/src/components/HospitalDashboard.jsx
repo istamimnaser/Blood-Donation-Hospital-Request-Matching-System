@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api, hospitalApi, matchApi } from '../api.js';
+import { IconBadge, BuildingIcon, DropletIcon, CalendarIcon, UrgencyBadge } from './Icon.jsx';
 
 const emptyForm = { blood_group_id: '', units_needed: 1, urgency: 'medium' };
 const emptyDonation = { donor_id: '', units_donated: 1, donation_date: '' };
 
-const urgencyBadge = { low: 'badge-neutral', medium: 'badge-warning', high: 'badge-warning', emergency: 'badge-danger' };
 const statusBadge = {
   pending: 'badge-warning',
   partially_fulfilled: 'badge-warning',
@@ -115,7 +115,10 @@ export default function HospitalDashboard() {
 
   return (
     <section>
-      <h2>My requests</h2>
+      <div className="section-heading">
+        <span className="eyebrow">Hospital</span>
+        <h2>My requests</h2>
+      </div>
 
       <form className="card form-grid" onSubmit={handleSubmit}>
         <select
@@ -172,7 +175,7 @@ export default function HospitalDashboard() {
                 <td>{r.blood_group}</td>
                 <td>{r.units_fulfilled} / {r.units_needed}</td>
                 <td>
-                  <span className={`badge ${urgencyBadge[r.urgency] || 'badge-neutral'}`}>{r.urgency}</span>
+                  <UrgencyBadge urgency={r.urgency} />
                 </td>
                 <td>
                   <span className={`badge ${statusBadge[r.status] || 'badge-neutral'}`}>
@@ -190,7 +193,12 @@ export default function HospitalDashboard() {
 
       {selectedRequest && (
         <div className="card panel">
-          <h3>Request #{selectedRequest.request_id} -- {selectedRequest.blood_group}</h3>
+          <div className="card-heading">
+            <IconBadge>
+              <BuildingIcon />
+            </IconBadge>
+            <h3>Request #{selectedRequest.request_id} -- {selectedRequest.blood_group}</h3>
+          </div>
 
           {panelError && <p className="error">{panelError}</p>}
           {panelMessage && <p className="success">{panelMessage}</p>}

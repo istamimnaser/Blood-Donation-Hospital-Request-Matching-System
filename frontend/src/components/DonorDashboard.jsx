@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, donorApi, matchApi } from '../api.js';
+import { IconBadge, DropletIcon, CalendarIcon, BellIcon, UrgencyBadge } from './Icon.jsx';
 
 const matchBadge = { suggested: 'badge-neutral', accepted: 'badge-warning', completed: 'badge-success', declined: 'badge-danger' };
 
@@ -69,13 +70,21 @@ export default function DonorDashboard() {
 
   return (
     <section>
-      <h2>My dashboard</h2>
+      <div className="section-heading">
+        <span className="eyebrow">Donor</span>
+        <h2>My dashboard</h2>
+      </div>
 
       {error && <p className="error">{error}</p>}
       {message && <p className="success">{message}</p>}
 
-      <div className="card">
-        <h3>{profile.full_name}</h3>
+      <div className="card card-info">
+        <div className="card-heading">
+          <IconBadge>
+            <DropletIcon />
+          </IconBadge>
+          <h3>{profile.full_name}</h3>
+        </div>
         <p className="hint">
           {profile.email} &middot; {profile.blood_group} &middot; {profile.city} - {profile.area}
         </p>
@@ -88,7 +97,12 @@ export default function DonorDashboard() {
       </div>
 
       <div className="card">
-        <h4>Update availability, location, and last donation</h4>
+        <div className="card-heading">
+          <IconBadge>
+            <CalendarIcon />
+          </IconBadge>
+          <h3>Update availability, location, and last donation</h3>
+        </div>
         <form className="form-grid" onSubmit={handleSave}>
           <input
             placeholder="Phone"
@@ -127,7 +141,12 @@ export default function DonorDashboard() {
         </form>
       </div>
 
-      <h3>My matches</h3>
+      <div className="card-heading">
+        <IconBadge>
+          <BellIcon />
+        </IconBadge>
+        <h3>My matches</h3>
+      </div>
       {matches.length === 0 ? (
         <p className="hint">No matches yet.</p>
       ) : (
@@ -147,7 +166,7 @@ export default function DonorDashboard() {
               <tr key={m.match_id}>
                 <td>{m.hospital_name}</td>
                 <td>{m.blood_group}</td>
-                <td>{m.urgency}</td>
+                <td><UrgencyBadge urgency={m.urgency} /></td>
                 <td>
                   <span className={`badge ${matchBadge[m.match_status] || 'badge-neutral'}`}>{m.match_status}</span>
                 </td>

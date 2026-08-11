@@ -22,15 +22,34 @@ const TABS = [
   { id: 'audit', label: 'Audit Log', Component: AuditLogTab },
 ];
 
-function Brand() {
+function SiteHeader({ children }) {
+  const { isAuthenticated, user, role } = useAuth();
+
   return (
-    <>
-      <img src="/crescent.jpg" alt="" className="brand-mark" />
-      <div className="brand-text">
-        <h1>Blood Donation &amp; Hospital Request Matching</h1>
-        <p className="tagline">Connecting willing donors with hospitals that need them</p>
+    <div className="site-header">
+      <div className="topbar">
+        <div className="topbar-inner">
+          <span>Connecting willing donors with hospitals that need them</span>
+          {isAuthenticated && (
+            <span className="topbar-account">
+              {user.full_name || user.name} &middot; {role}
+            </span>
+          )}
+        </div>
       </div>
-    </>
+
+      <div className="header-main">
+        <div className="header-main-inner">
+          <div className="brand">
+            <img src="/crescent.jpg" alt="" className="brand-mark" />
+            <div className="brand-text">
+              <h1>Blood Donation &amp; Hospital Request Matching</h1>
+            </div>
+          </div>
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -42,14 +61,14 @@ function AppShell() {
   if (!isAuthenticated) {
     const AuthPage = AUTH_PAGES[authView];
     return (
-      <div className="app">
-        <header className="app-header">
-          <Brand />
-        </header>
-        <main className="tab-panel">
-          <AuthPage onSwitch={setAuthView} />
-        </main>
-      </div>
+      <>
+        <SiteHeader />
+        <div className="app">
+          <main className="tab-panel">
+            <AuthPage onSwitch={setAuthView} />
+          </main>
+        </div>
+      </>
     );
   }
 
@@ -58,30 +77,30 @@ function AppShell() {
     : TABS.find((t) => t.id === activeTab).Component;
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <Brand />
-      </header>
-
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={t.id === activeTab ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab(t.id)}
-          >
-            {t.label}
+    <>
+      <SiteHeader>
+        <nav className="tabs">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              className={t.id === activeTab ? 'tab active' : 'tab'}
+              onClick={() => setActiveTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+          <button className="tab tab-signout" onClick={logout}>
+            Log out
           </button>
-        ))}
-        <button className="tab tab-signout" onClick={logout}>
-          Log out
-        </button>
-      </nav>
+        </nav>
+      </SiteHeader>
 
-      <main className="tab-panel">
-        <Active />
-      </main>
-    </div>
+      <div className="app">
+        <main className="tab-panel">
+          <Active />
+        </main>
+      </div>
+    </>
   );
 }
 
