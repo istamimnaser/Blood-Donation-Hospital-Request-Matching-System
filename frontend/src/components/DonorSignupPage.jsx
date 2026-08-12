@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import AuthShell from './AuthShell.jsx';
+import { Input } from './ui/input.jsx';
+import { Button } from './ui/button.jsx';
+import { Label } from './ui/label.jsx';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select.jsx';
 
 const emptyForm = {
   full_name: '',
@@ -18,7 +24,6 @@ export default function DonorSignupPage({ onSwitch }) {
   const [form, setForm] = useState(emptyForm);
   const [bloodGroups, setBloodGroups] = useState([]);
   const [locations, setLocations] = useState([]);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -27,12 +32,15 @@ export default function DonorSignupPage({ onSwitch }) {
         setBloodGroups(bg);
         setLocations(loc);
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => toast.error(err.message));
   }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
+    if (!form.blood_group_id || !form.location_id) {
+      toast.error('Please choose a blood group and a location.');
+      return;
+    }
     setLoading(true);
     try {
       await signupDonor({
@@ -43,106 +51,106 @@ export default function DonorSignupPage({ onSwitch }) {
         last_donation_date: form.last_donation_date || null,
       });
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <section className="auth-page">
-      <div className="auth-shell">
-        <aside className="auth-aside" style={{ '--auth-aside-image': "url('/crescent.jpg')" }}>
-          <span className="quote-mark">&ldquo;</span>
-          <h2>Someone nearby needs your blood group right now.</h2>
-          <p>Register once, and hospitals can find and match you when your blood type is needed.</p>
-        </aside>
+    <AuthShell
+      quote="Someone nearby needs your blood group right now."
+      description="Register once, and hospitals can find and match you when your blood type is needed."
+    >
+      <h2 className="mb-5 text-xl font-bold">Donor sign up</h2>
 
-        <div className="auth-card">
-          <h2>Donor sign up</h2>
+      <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
+        <Input
+          placeholder="Full name"
+          value={form.full_name}
+          onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+          required
+        />
+        <Input
+          type="email"
+          placeholder="Email"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          required
+        />
+        <Input
+          type="password"
+          placeholder="Password"
+          value={form.password}
+          onChange={(e) => setForm({ ...form, password: e.target.value })}
+          required
+        />
+        <Input
+          placeholder="Phone"
+          value={form.phone}
+          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          required
+        />
 
-          <form className="form-grid" onSubmit={handleSubmit}>
-            <input
-              placeholder="Full name"
-              value={form.full_name}
-              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-              required
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-            />
-            <input
-              placeholder="Phone"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              required
-            />
-            <label>
-              Birthday:
-              <input
-                type="date"
-                value={form.date_of_birth}
-                onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
-              />
-            </label>
-            <select
-              value={form.blood_group_id}
-              onChange={(e) => setForm({ ...form, blood_group_id: e.target.value })}
-              required
-            >
-              <option value="">Blood group</option>
-              {bloodGroups.map((bg) => (
-                <option key={bg.blood_group_id} value={bg.blood_group_id}>
-                  {bg.group_name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={form.location_id}
-              onChange={(e) => setForm({ ...form, location_id: e.target.value })}
-              required
-            >
-              <option value="">Location</option>
-              {locations.map((l) => (
-                <option key={l.location_id} value={l.location_id}>
-                  {l.city} - {l.area}
-                </option>
-              ))}
-            </select>
-            <label>
-              Last donation date (if any):
-              <input
-                type="date"
-                value={form.last_donation_date}
-                onChange={(e) => setForm({ ...form, last_donation_date: e.target.value })}
-              />
-            </label>
-            <button type="submit" disabled={loading}>
-              {loading ? 'Signing up...' : 'Sign up'}
-            </button>
-          </form>
+        <Label className="flex-col items-start gap-1.5">
+          <span className="text-muted-foreground">Birthday</span>
+          <Input
+            type="date"
+            value={form.date_of_birth}
+            onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
+          />
+        </Label>
 
-          {error && <p className="error">{error}</p>}
+        <Select value={form.blood_group_id} onValueChange={(v) => setForm({ ...form, blood_group_id: v })}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Blood group" />
+          </SelectTrigger>
+          <SelectContent>
+            {bloodGroups.map((bg) => (
+              <SelectItem key={bg.blood_group_id} value={String(bg.blood_group_id)}>
+                {bg.group_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <p className="hint">
-            Already have an account?{' '}
-            <button type="button" className="link-button" onClick={() => onSwitch('login')}>
-              Log in
-            </button>
-          </p>
-        </div>
-      </div>
-    </section>
+        <Select value={form.location_id} onValueChange={(v) => setForm({ ...form, location_id: v })}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Location" />
+          </SelectTrigger>
+          <SelectContent>
+            {locations.map((l) => (
+              <SelectItem key={l.location_id} value={String(l.location_id)}>
+                {l.city} - {l.area}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Label className="flex-col items-start gap-1.5">
+          <span className="text-muted-foreground">Last donation date (if any)</span>
+          <Input
+            type="date"
+            value={form.last_donation_date}
+            onChange={(e) => setForm({ ...form, last_donation_date: e.target.value })}
+          />
+        </Label>
+
+        <Button type="submit" disabled={loading} className="mt-1">
+          {loading ? 'Signing up...' : 'Sign up'}
+        </Button>
+      </form>
+
+      <p className="mt-4 text-sm text-muted-foreground">
+        Already have an account?{' '}
+        <button
+          type="button"
+          className="bg-transparent p-0 font-semibold text-primary hover:bg-transparent hover:underline"
+          onClick={() => onSwitch('login')}
+        >
+          Log in
+        </button>
+      </p>
+    </AuthShell>
   );
 }

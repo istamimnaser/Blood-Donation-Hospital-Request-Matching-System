@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { RefreshCw } from 'lucide-react';
 import { api } from '../api.js';
+import { Button } from './ui/button.jsx';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table.jsx';
 
 export default function AuditLogTab() {
   const [logs, setLogs] = useState([]);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -11,7 +14,7 @@ export default function AuditLogTab() {
     try {
       setLogs(await api.auditLogs());
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -23,39 +26,48 @@ export default function AuditLogTab() {
 
   return (
     <section>
-      <h2>Audit Log</h2>
-      <button onClick={load}>Refresh</button>
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Audit Log</h2>
+        <Button variant="outline" size="sm" onClick={load}>
+          <RefreshCw /> Refresh
+        </Button>
+      </div>
 
-      {error && <p className="error">{error}</p>}
       {loading ? (
-        <p>Loading...</p>
+        <p className="text-muted-foreground">Loading...</p>
       ) : logs.length === 0 ? (
-        <p className="hint">No changes logged yet.</p>
+        <p className="text-sm text-muted-foreground">No changes logged yet.</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Table</th>
-              <th>Record</th>
-              <th>Action</th>
-              <th>Old</th>
-              <th>New</th>
-              <th>When</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((l) => (
-              <tr key={l.audit_id}>
-                <td>{l.table_name}</td>
-                <td>{l.record_id}</td>
-                <td>{l.action}</td>
-                <td className="json-cell">{l.old_data ? JSON.stringify(l.old_data) : '-'}</td>
-                <td className="json-cell">{l.new_data ? JSON.stringify(l.new_data) : '-'}</td>
-                <td>{new Date(l.changed_at).toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-hidden rounded-lg border shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead>Table</TableHead>
+                <TableHead>Record</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Old</TableHead>
+                <TableHead>New</TableHead>
+                <TableHead>When</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.map((l) => (
+                <TableRow key={l.audit_id}>
+                  <TableCell>{l.table_name}</TableCell>
+                  <TableCell>{l.record_id}</TableCell>
+                  <TableCell>{l.action}</TableCell>
+                  <TableCell className="max-w-[260px] overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap text-muted-foreground">
+                    {l.old_data ? JSON.stringify(l.old_data) : '-'}
+                  </TableCell>
+                  <TableCell className="max-w-[260px] overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap text-muted-foreground">
+                    {l.new_data ? JSON.stringify(l.new_data) : '-'}
+                  </TableCell>
+                  <TableCell>{new Date(l.changed_at).toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </section>
   );

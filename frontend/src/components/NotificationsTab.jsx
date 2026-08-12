@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { RefreshCw } from 'lucide-react';
 import { api } from '../api.js';
+import { Button } from './ui/button.jsx';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table.jsx';
 
 export default function NotificationsTab() {
   const [notifications, setNotifications] = useState([]);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -11,7 +14,7 @@ export default function NotificationsTab() {
     try {
       setNotifications(await api.notifications());
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -23,35 +26,40 @@ export default function NotificationsTab() {
 
   return (
     <section>
-      <h2>Notifications</h2>
-      <button onClick={load}>Refresh</button>
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Notifications</h2>
+        <Button variant="outline" size="sm" onClick={load}>
+          <RefreshCw /> Refresh
+        </Button>
+      </div>
 
-      {error && <p className="error">{error}</p>}
       {loading ? (
-        <p>Loading...</p>
+        <p className="text-muted-foreground">Loading...</p>
       ) : notifications.length === 0 ? (
-        <p className="hint">No notifications yet.</p>
+        <p className="text-sm text-muted-foreground">No notifications yet.</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Recipient</th>
-              <th>Type</th>
-              <th>Message</th>
-              <th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {notifications.map((n) => (
-              <tr key={n.notification_id}>
-                <td>{n.recipient_type} #{n.recipient_id}</td>
-                <td>{n.notification_type}</td>
-                <td>{n.message}</td>
-                <td>{new Date(n.created_at).toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-hidden rounded-lg border shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead>Recipient</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Message</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {notifications.map((n) => (
+                <TableRow key={n.notification_id}>
+                  <TableCell>{n.recipient_type} #{n.recipient_id}</TableCell>
+                  <TableCell>{n.notification_type}</TableCell>
+                  <TableCell className="whitespace-normal">{n.message}</TableCell>
+                  <TableCell>{new Date(n.created_at).toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </section>
   );

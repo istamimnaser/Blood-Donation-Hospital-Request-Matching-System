@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { CheckCircle2, Bell, Droplet } from 'lucide-react';
 import { api, donorApi, matchApi } from '../api.js';
 import { IconBadge, DropletIcon, CalendarIcon, BellIcon, UrgencyBadge } from './Icon.jsx';
+import StatCard, { StatsStrip } from './StatCard.jsx';
+import { Card, CardContent } from './ui/card.jsx';
+import { Input } from './ui/input.jsx';
+import { Button } from './ui/button.jsx';
+import { Badge } from './ui/badge.jsx';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select.jsx';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table.jsx';
 
-const matchBadge = { suggested: 'badge-neutral', accepted: 'badge-warning', completed: 'badge-success', declined: 'badge-danger' };
+const matchBadge = { suggested: 'neutral', accepted: 'warning', completed: 'success', declined: 'destructive' };
 
 export default function DonorDashboard() {
   const [profile, setProfile] = useState(null);
   const [locations, setLocations] = useState([]);
   const [editForm, setEditForm] = useState(null);
   const [matches, setMatches] = useState([]);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
   async function loadAll() {
@@ -27,7 +34,7 @@ export default function DonorDashboard() {
         is_available: me.is_available,
       });
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -39,8 +46,6 @@ export default function DonorDashboard() {
 
   async function handleSave(e) {
     e.preventDefault();
-    setError('');
-    setMessage('');
     try {
       const updated = await donorApi.updateMe({
         ...editForm,
@@ -48,141 +53,158 @@ export default function DonorDashboard() {
         last_donation_date: editForm.last_donation_date || null,
       });
       setProfile(updated);
-      setMessage('Profile updated.');
+      toast.success('Profile updated.');
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     }
   }
 
   async function respond(matchId, status) {
-    setError('');
-    setMessage('');
     try {
       await matchApi.respond(matchId, status);
-      setMessage(`Match ${status}.`);
+      toast.success(`Match ${status}.`);
       loadAll();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     }
   }
 
-  if (loading || !profile || !editForm) return <p>Loading...</p>;
+  if (loading || !profile || !editForm) return <p className="text-muted-foreground">Loading...</p>;
+
+  const completedCount = matches.filter((m) => m.match_status === 'completed').length;
+  const pendingCount = matches.filter((m) => m.match_status === 'suggested').length;
 
   return (
     <section>
-      <div className="section-heading">
-        <span className="eyebrow">Donor</span>
-        <h2>My dashboard</h2>
+      <div className="mb-6">
+        <span className="mb-1 block text-xs font-bold tracking-widest text-brand-accent-dark uppercase">Donor</span>
+        <h2 className="text-2xl font-bold">My dashboard</h2>
       </div>
 
-      {error && <p className="error">{error}</p>}
-      {message && <p className="success">{message}</p>}
+      <StatsStrip>
+        <StatCard icon={<Droplet />} label="Total matches" value={matches.length} />
+        <StatCard icon={<CheckCircle2 />} label="Completed" value={completedCount} />
+        <StatCard icon={<Bell />} label="Awaiting response" value={pendingCount} />
+      </StatsStrip>
 
-      <div className="card card-info">
-        <div className="card-heading">
-          <IconBadge>
-            <DropletIcon />
-          </IconBadge>
-          <h3>{profile.full_name}</h3>
-        </div>
-        <p className="hint">
-          {profile.email} &middot; {profile.blood_group} &middot; {profile.city} - {profile.area}
-        </p>
-        <p>
-          <span className={`badge ${profile.is_available ? 'badge-success' : 'badge-neutral'}`}>
-            {profile.is_available ? 'Available' : 'Unavailable'}
-          </span>{' '}
-          Last donation: {profile.last_donation_date ? profile.last_donation_date.slice(0, 10) : 'never'}
-        </p>
-      </div>
+      <Card className="mb-6 gap-3 border-none bg-gradient-to-br from-brand-navy to-brand-accent-dark py-5 text-white shadow-md">
+        <CardContent className="px-5">
+          <div className="mb-3 flex items-center gap-3">
+            <IconBadge>
+              <DropletIcon />
+            </IconBadge>
+            <h3 className="text-lg font-bold">{profile.full_name}</h3>
+          </div>
+          <p className="text-sm text-white/75">
+            {profile.email} &middot; {profile.blood_group} &middot; {profile.city} - {profile.area}
+          </p>
+          <p className="mt-2 flex items-center gap-2 text-sm">
+            <Badge variant={profile.is_available ? 'success' : 'neutral'}>
+              {profile.is_available ? 'Available' : 'Unavailable'}
+            </Badge>
+            Last donation: {profile.last_donation_date ? profile.last_donation_date.slice(0, 10) : 'never'}
+          </p>
+        </CardContent>
+      </Card>
 
-      <div className="card">
-        <div className="card-heading">
-          <IconBadge>
-            <CalendarIcon />
-          </IconBadge>
-          <h3>Update availability, location, and last donation</h3>
-        </div>
-        <form className="form-grid" onSubmit={handleSave}>
-          <input
-            placeholder="Phone"
-            value={editForm.phone}
-            onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-            required
-          />
-          <select
-            value={editForm.location_id}
-            onChange={(e) => setEditForm({ ...editForm, location_id: e.target.value })}
-            required
-          >
-            {locations.map((l) => (
-              <option key={l.location_id} value={l.location_id}>
-                {l.city} - {l.area}
-              </option>
-            ))}
-          </select>
-          <label>
-            Last donation date:{' '}
-            <input
-              type="date"
-              value={editForm.last_donation_date}
-              onChange={(e) => setEditForm({ ...editForm, last_donation_date: e.target.value })}
+      <Card className="mb-6 gap-3 py-5">
+        <CardContent className="px-5">
+          <div className="mb-4 flex items-center gap-3">
+            <IconBadge>
+              <CalendarIcon />
+            </IconBadge>
+            <h3 className="text-lg font-bold">Update availability, location, and last donation</h3>
+          </div>
+          <form className="flex flex-wrap items-center gap-3" onSubmit={handleSave}>
+            <Input
+              placeholder="Phone"
+              value={editForm.phone}
+              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              required
+              className="w-auto"
             />
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={editForm.is_available}
-              onChange={(e) => setEditForm({ ...editForm, is_available: e.target.checked })}
-            />{' '}
-            Available to donate
-          </label>
-          <button type="submit">Save</button>
-        </form>
-      </div>
+            <Select
+              value={String(editForm.location_id)}
+              onValueChange={(v) => setEditForm({ ...editForm, location_id: v })}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((l) => (
+                  <SelectItem key={l.location_id} value={String(l.location_id)}>
+                    {l.city} - {l.area}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Last donation date:
+              <Input
+                type="date"
+                value={editForm.last_donation_date}
+                onChange={(e) => setEditForm({ ...editForm, last_donation_date: e.target.value })}
+                className="w-auto"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={editForm.is_available}
+                onChange={(e) => setEditForm({ ...editForm, is_available: e.target.checked })}
+                className="size-4 accent-primary"
+              />
+              Available to donate
+            </label>
+            <Button type="submit">Save</Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      <div className="card-heading">
+      <div className="mb-3 flex items-center gap-3">
         <IconBadge>
           <BellIcon />
         </IconBadge>
-        <h3>My matches</h3>
+        <h3 className="text-lg font-bold">My matches</h3>
       </div>
       {matches.length === 0 ? (
-        <p className="hint">No matches yet.</p>
+        <p className="text-sm text-muted-foreground">No matches yet.</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Hospital</th>
-              <th>Blood group</th>
-              <th>Urgency</th>
-              <th>Status</th>
-              <th>Matched at</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {matches.map((m) => (
-              <tr key={m.match_id}>
-                <td>{m.hospital_name}</td>
-                <td>{m.blood_group}</td>
-                <td><UrgencyBadge urgency={m.urgency} /></td>
-                <td>
-                  <span className={`badge ${matchBadge[m.match_status] || 'badge-neutral'}`}>{m.match_status}</span>
-                </td>
-                <td>{new Date(m.matched_at).toLocaleString()}</td>
-                <td>
-                  {m.match_status === 'suggested' && (
-                    <>
-                      <button onClick={() => respond(m.match_id, 'accepted')}>Accept</button>{' '}
-                      <button onClick={() => respond(m.match_id, 'declined')}>Decline</button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-hidden rounded-lg border shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead>Hospital</TableHead>
+                <TableHead>Blood group</TableHead>
+                <TableHead>Urgency</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Matched at</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {matches.map((m) => (
+                <TableRow key={m.match_id}>
+                  <TableCell>{m.hospital_name}</TableCell>
+                  <TableCell>{m.blood_group}</TableCell>
+                  <TableCell><UrgencyBadge urgency={m.urgency} /></TableCell>
+                  <TableCell>
+                    <Badge variant={matchBadge[m.match_status] || 'neutral'}>{m.match_status}</Badge>
+                  </TableCell>
+                  <TableCell>{new Date(m.matched_at).toLocaleString()}</TableCell>
+                  <TableCell>
+                    {m.match_status === 'suggested' && (
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => respond(m.match_id, 'accepted')}>Accept</Button>
+                        <Button size="sm" variant="outline" onClick={() => respond(m.match_id, 'declined')}>Decline</Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </section>
   );
