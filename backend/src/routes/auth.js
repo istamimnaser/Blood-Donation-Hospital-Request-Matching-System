@@ -48,6 +48,22 @@ router.post('/signup/donor', async (req, res, next) => {
     });
     }
 
+    if (last_donation_date) {
+    const donationDate = new Date(last_donation_date);
+
+    if (donationDate < dob) {
+    return res.status(400).json({
+      error: 'Last donation date cannot be before birth date'
+    });
+    }
+
+    if (donationDate > new Date()) {
+    return res.status(400).json({
+      error: 'Last donation date cannot be in the future'
+    });
+    }
+    }
+
 
     const password_hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(

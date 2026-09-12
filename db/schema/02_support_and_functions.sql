@@ -90,10 +90,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION check_donor_age()
+CREATE OR REPLACE FUNCTION check_donor_details()
 RETURNS TRIGGER AS $$
 BEGIN
 
+    -- Age validation
     IF NEW.date_of_birth IS NULL THEN
         RAISE EXCEPTION 'Date of birth is required';
     END IF;
@@ -102,13 +103,28 @@ BEGIN
         RAISE EXCEPTION 'Donor must be at least 18 years old';
     END IF;
 
+
+    -- Last donation date validation
+    IF NEW.last_donation_date IS NOT NULL THEN
+
+        IF NEW.last_donation_date < NEW.date_of_birth THEN
+            RAISE EXCEPTION 'Last donation date cannot be before birth date';
+        END IF;
+
+        IF NEW.last_donation_date > CURRENT_DATE THEN
+            RAISE EXCEPTION 'Last donation date cannot be in the future';
+        END IF;
+
+    END IF;
+
+
     RETURN NEW;
 
 END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE TRIGGER donor_age_check
+CREATE TRIGGER donor_details_check
 BEFORE INSERT OR UPDATE ON donors
 FOR EACH ROW
-EXECUTE FUNCTION check_donor_age();
+EXECUTE FUNCTION check_donor_details();

@@ -74,6 +74,20 @@ useEffect(() => {
     toast.error('You must be at least 18 years old to donate blood.');
     return;
   }
+
+    if (form.last_donation_date) {
+    const donationDate = new Date(form.last_donation_date);
+
+    if (donationDate < dob) {
+      toast.error('Last donation date cannot be before your birth date.');
+      return;
+    }
+
+    if (donationDate > today) {
+      toast.error('Last donation date cannot be in the future.');
+      return;
+    }
+  }
     setLoading(true);
     try {
       await signupDonor({
@@ -174,10 +188,14 @@ useEffect(() => {
         <Label className="flex-col items-start gap-1.5">
           <span className="text-muted-foreground">Last donation date (if any)</span>
           <Input
-            type="date"
-            value={form.last_donation_date}
-            onChange={(e) => setForm({ ...form, last_donation_date: e.target.value })}
-          />
+          type="date"
+          min={form.date_of_birth}
+          max={new Date().toISOString().split("T")[0]}
+          value={form.last_donation_date}
+          onChange={(e) =>
+            setForm({ ...form, last_donation_date: e.target.value })
+          }
+        />
         </Label>
 
         <Button type="submit" disabled={loading} className="mt-1">
