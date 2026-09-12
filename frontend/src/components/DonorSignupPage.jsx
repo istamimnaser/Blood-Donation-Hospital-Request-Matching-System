@@ -52,6 +52,28 @@ useEffect(() => {
       toast.error('Please choose a blood group and a location.');
       return;
     }
+      if (!form.date_of_birth) {
+    toast.error('Please enter your date of birth.');
+    return;
+  }
+
+  const dob = new Date(form.date_of_birth);
+  const today = new Date();
+
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < dob.getDate())
+  ) {
+    age--;
+  }
+
+  if (age < 18) {
+    toast.error('You must be at least 18 years old to donate blood.');
+    return;
+  }
     setLoading(true);
     try {
       await signupDonor({
@@ -106,10 +128,18 @@ useEffect(() => {
         <Label className="flex-col items-start gap-1.5">
           <span className="text-muted-foreground">Birthday</span>
           <Input
-            type="date"
-            value={form.date_of_birth}
-            onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
-          />
+          type="date"
+          max={
+          new Date(
+          new Date().setFullYear(new Date().getFullYear() - 18)
+          )
+          .toISOString()
+          .split("T")[0]
+        }
+        value={form.date_of_birth}
+        onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
+        required
+        />
         </Label>
 
         <Select value={form.blood_group_id} onValueChange={(v) => setForm({ ...form, blood_group_id: v })}>

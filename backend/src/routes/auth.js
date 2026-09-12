@@ -20,6 +20,35 @@ router.post('/signup/donor', async (req, res, next) => {
       return res.status(400).json({ error: 'full_name, email, password, phone, blood_group_id, and location_id are required' });
     }
 
+    if (!full_name || !email || !password || !phone || !blood_group_id || !location_id) {
+  return res.status(400).json({ error: 'full_name, email, password, phone, blood_group_id, and location_id are required' });
+}
+
+
+    if (!date_of_birth) {
+    return res.status(400).json({ error: 'Date of birth is required' });
+    }
+
+    const dob = new Date(date_of_birth);
+    const today = new Date();
+
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+
+    if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < dob.getDate())
+    ) {
+    age--;
+    }
+
+    if (age < 18) {
+    return res.status(400).json({
+    error: 'Donor must be at least 18 years old'
+    });
+    }
+
+
     const password_hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
       `INSERT INTO donors (full_name, email, password_hash, phone, blood_group_id, location_id, date_of_birth, last_donation_date)

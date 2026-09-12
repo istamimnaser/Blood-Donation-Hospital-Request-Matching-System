@@ -88,3 +88,27 @@ BEGIN
     ORDER BY same_location DESC, exact_blood_group DESC, d.last_donation_date NULLS FIRST;
 END;
 $$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION check_donor_age()
+RETURNS TRIGGER AS $$
+BEGIN
+
+    IF NEW.date_of_birth IS NULL THEN
+        RAISE EXCEPTION 'Date of birth is required';
+    END IF;
+
+    IF AGE(NEW.date_of_birth) < INTERVAL '18 years' THEN
+        RAISE EXCEPTION 'Donor must be at least 18 years old';
+    END IF;
+
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER donor_age_check
+BEFORE INSERT OR UPDATE ON donors
+FOR EACH ROW
+EXECUTE FUNCTION check_donor_age();
