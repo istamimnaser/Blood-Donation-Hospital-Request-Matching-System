@@ -26,14 +26,25 @@ export default function DonorSignupPage({ onSwitch }) {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    Promise.all([api.bloodGroups(), api.locations()])
-      .then(([bg, loc]) => {
-        setBloodGroups(bg);
-        setLocations(loc);
-      })
-      .catch((err) => toast.error(err.message));
-  }, []);
+useEffect(() => {
+  async function loadData() {
+    try {
+      const [bloodGroupsData, locationsData] = await Promise.all([
+        api.bloodGroups(),
+        api.locations()
+      ]);
+
+      console.log("locations:", locationsData);
+
+      setBloodGroups(bloodGroupsData);
+      setLocations(locationsData);
+    } catch (err) {
+      console.error("Location loading failed:", err);
+    }
+  }
+
+  loadData();
+}, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -119,11 +130,14 @@ export default function DonorSignupPage({ onSwitch }) {
             <SelectValue placeholder="Location" />
           </SelectTrigger>
           <SelectContent>
-            {locations.map((l) => (
-              <SelectItem key={l.location_id} value={String(l.location_id)}>
-                {l.city} - {l.area}
-              </SelectItem>
-            ))}
+            {locations.map((location) => (
+            <SelectItem
+            key={location.location_id}
+            value={String(location.location_id)}
+  >
+            {location.city} - {location.area}
+            </SelectItem>
+          ))}
           </SelectContent>
         </Select>
 
