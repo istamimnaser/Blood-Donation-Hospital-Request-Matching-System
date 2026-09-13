@@ -68,6 +68,31 @@ router.post('/', requireAuth('hospital'), async (req, res, next) => {
   }
 });
 
+// Donor self-nomination ("I can help"): a donor volunteers for a hospital's
+// open blood_request instead of waiting to be suggested. Kept as its own
+// donor-authenticated endpoint rather than relaxing POST /'s
+// requireAuth('hospital') to branch on req.user.role -- the ownership
+// check above (hospital owns the request) and this eligibility check are
+// different enough that one shared handler would just be an if/else
+// wrapped around two unrelated code paths. sp_create_match's
+// p_initial_status lands the match as 'accepted' directly, since the donor
+// volunteering themselves has already done the "accepting".
+router.post('/self-nominate', requireAuth('donor'), async (req, res, next) => {
+  try {
+    const { request_id } = req.body;
+
+    await pool.query("CALL sp_create_match($1, $2, 'accepted')", [request_id, req.user.id]);
+    const { rows } = await pool.query(
+      `SELECT match_id, request_id, donor_id, match_status, matched_at
+       FROM request_matches WHERE request_id = $1 AND donor_id = $2`,
+      [request_id, req.user.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Donor accepts or declines a match they were suggested for.
 router.patch('/:id/respond', requireAuth('donor'), async (req, res, next) => {
   try {
