@@ -72,6 +72,8 @@ export const donorApi = {
 
   updateMe: (body) =>
     request('/donors/me', { method: 'PATCH', body: JSON.stringify(body) }),
+
+  openRequests: () => request('/blood-requests/open-for-me'),
 };
 
 export const hospitalApi = {
@@ -99,6 +101,12 @@ export const matchApi = {
     request(`/matches/${matchId}/respond`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+    }),
+
+  selfNominate: (requestId) =>
+    request('/matches/self-nominate', {
+      method: 'POST',
+      body: JSON.stringify({ request_id: requestId }),
     }),
 };
 
