@@ -34,6 +34,14 @@ WHERE dr.status = 'pending'
 ORDER BY dr.created_at DESC;
 
 
+-- Blood bank: current stock per hospital/blood group, and the full
+-- add/withdraw ledger behind it.
+SELECT * FROM v_bloodbank_inventory;
+
+
+SELECT * FROM v_bloodbank_transactions;
+
+
 -- A donor's own community requests, with whichever hospital accepted (if any).
 SELECT dr.donor_request_id, bg.group_name AS blood_group, dr.units_needed, dr.status,
        h.name AS accepted_hospital, resp.responded_at

@@ -5,6 +5,8 @@ DROP VIEW IF EXISTS v_hospital_summary CASCADE;
 DROP VIEW IF EXISTS v_donation_history CASCADE;
 DROP VIEW IF EXISTS v_pending_emergency_requests CASCADE;
 
+DROP TABLE IF EXISTS bloodbank_transactions CASCADE;
+DROP TABLE IF EXISTS bloodbank_stock CASCADE;
 DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS donor_request_responses CASCADE;
