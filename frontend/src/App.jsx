@@ -12,6 +12,7 @@ import HospitalDashboard from './components/HospitalDashboard.jsx';
 import ReportsTab from './components/ReportsTab.jsx';
 import NotificationsTab from './components/NotificationsTab.jsx';
 import AuditLogTab from './components/AuditLogTab.jsx';
+import CompatibilityTab from './components/CompatibilityTab.jsx';
 
 const AUTH_PAGES = {
   login: LoginPage,
@@ -21,6 +22,7 @@ const AUTH_PAGES = {
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'compatibility', label: 'Compatibility', Component: CompatibilityTab },
   { id: 'reports', label: 'Reports', Component: ReportsTab },
   { id: 'notifications', label: 'Notifications', Component: NotificationsTab },
   { id: 'audit', label: 'Audit Log', Component: AuditLogTab },

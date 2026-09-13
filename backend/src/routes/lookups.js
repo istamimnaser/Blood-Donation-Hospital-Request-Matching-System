@@ -25,4 +25,18 @@ router.get('/locations', async (req, res, next) => {
   }
 });
 
+router.get('/blood-compatibility', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT d.group_name AS donor_group, r.group_name AS recipient_group
+       FROM blood_compatibility bc
+       JOIN blood_groups d ON d.blood_group_id = bc.donor_blood_group_id
+       JOIN blood_groups r ON r.blood_group_id = bc.recipient_blood_group_id`
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

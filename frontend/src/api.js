@@ -111,6 +111,9 @@ export const api = {
   locations: () =>
     request('/lookups/locations'),
 
+  bloodCompatibility: () =>
+    request('/lookups/blood-compatibility'),
+
   recordDonation: (body) =>
     request('/donations', {
       method: 'POST',
