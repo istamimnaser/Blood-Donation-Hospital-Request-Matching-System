@@ -13,6 +13,7 @@ import ReportsTab from './components/ReportsTab.jsx';
 import NotificationsTab from './components/NotificationsTab.jsx';
 import AuditLogTab from './components/AuditLogTab.jsx';
 import CompatibilityTab from './components/CompatibilityTab.jsx';
+import CommunityRequestsTab from './components/CommunityRequestsTab.jsx';
 
 const AUTH_PAGES = {
   login: LoginPage,
@@ -23,6 +24,7 @@ const AUTH_PAGES = {
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'compatibility', label: 'Compatibility', Component: CompatibilityTab },
+  { id: 'community', label: 'Community Requests', Component: CommunityRequestsTab },
   { id: 'reports', label: 'Reports', Component: ReportsTab },
   { id: 'notifications', label: 'Notifications', Component: NotificationsTab },
   { id: 'audit', label: 'Audit Log', Component: AuditLogTab },
