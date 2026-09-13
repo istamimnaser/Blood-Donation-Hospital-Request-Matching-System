@@ -102,6 +102,22 @@ export const matchApi = {
     }),
 };
 
+export const donorRequestApi = {
+  mine: () => request('/donor-requests/mine'),
+
+  create: (body) =>
+    request('/donor-requests', { method: 'POST', body: JSON.stringify(body) }),
+
+  open: (bloodGroupId) =>
+    request(`/donor-requests${bloodGroupId ? `?blood_group_id=${bloodGroupId}` : ''}`),
+
+  respond: (id, status) =>
+    request(`/donor-requests/${id}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    }),
+};
+
 export const api = {
   health: () => request('/health'),
 
