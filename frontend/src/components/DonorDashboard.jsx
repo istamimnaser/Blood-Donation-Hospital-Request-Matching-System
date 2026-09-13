@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { CheckCircle2, Bell, Droplet } from 'lucide-react';
+import { CheckCircle2, Bell, Droplet, HeartHandshake } from 'lucide-react';
 import { api, donorApi, matchApi } from '../api.js';
 import { IconBadge, DropletIcon, CalendarIcon, BellIcon, UrgencyBadge } from './Icon.jsx';
 import StatCard, { StatsStrip } from './StatCard.jsx';
@@ -18,15 +18,22 @@ export default function DonorDashboard() {
   const [locations, setLocations] = useState([]);
   const [editForm, setEditForm] = useState(null);
   const [matches, setMatches] = useState([]);
+  const [openRequests, setOpenRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   async function loadAll() {
     setLoading(true);
     try {
-      const [me, loc, mine] = await Promise.all([donorApi.me(), api.locations(), matchApi.mine()]);
+      const [me, loc, mine, open] = await Promise.all([
+        donorApi.me(),
+        api.locations(),
+        matchApi.mine(),
+        donorApi.openRequests(),
+      ]);
       setProfile(me);
       setLocations(loc);
       setMatches(mine);
+      setOpenRequests(open);
       setEditForm({
         location_id: me.location_id,
         last_donation_date: me.last_donation_date ? me.last_donation_date.slice(0, 10) : '',
@@ -63,6 +70,16 @@ export default function DonorDashboard() {
     try {
       await matchApi.respond(matchId, status);
       toast.success(`Match ${status}.`);
+      loadAll();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
+  async function volunteer(requestId) {
+    try {
+      await matchApi.selfNominate(requestId);
+      toast.success('You volunteered -- the hospital can now record your donation.');
       loadAll();
     } catch (err) {
       toast.error(err.message);
@@ -160,6 +177,45 @@ export default function DonorDashboard() {
           </form>
         </CardContent>
       </Card>
+
+      <div className="mb-3 flex items-center gap-3">
+        <IconBadge>
+          <HeartHandshake />
+        </IconBadge>
+        <h3 className="text-lg font-bold">Requests you can help with</h3>
+      </div>
+      {openRequests.length === 0 ? (
+        <p className="mb-6 text-sm text-muted-foreground">
+          No open hospital requests match your blood group right now.
+        </p>
+      ) : (
+        <div className="mb-6 overflow-hidden rounded-lg border shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead>Hospital</TableHead>
+                <TableHead>Blood group</TableHead>
+                <TableHead>Units needed</TableHead>
+                <TableHead>Urgency</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {openRequests.map((r) => (
+                <TableRow key={r.request_id}>
+                  <TableCell>{r.hospital_name}</TableCell>
+                  <TableCell>{r.blood_group}</TableCell>
+                  <TableCell>{r.units_needed - r.units_fulfilled} / {r.units_needed}</TableCell>
+                  <TableCell><UrgencyBadge urgency={r.urgency} /></TableCell>
+                  <TableCell>
+                    <Button size="sm" onClick={() => volunteer(r.request_id)}>I can help</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <div className="mb-3 flex items-center gap-3">
         <IconBadge>
