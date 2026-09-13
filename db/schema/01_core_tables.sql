@@ -9,6 +9,8 @@ DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS donor_availability CASCADE;
 DROP TABLE IF EXISTS donations CASCADE;
+DROP TABLE IF EXISTS donor_request_responses CASCADE;
+DROP TABLE IF EXISTS donor_requests CASCADE;
 DROP TABLE IF EXISTS request_matches CASCADE;
 DROP TABLE IF EXISTS blood_requests CASCADE;
 DROP TABLE IF EXISTS donors CASCADE;
@@ -98,3 +100,37 @@ CREATE TABLE donations (
     donation_date   DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Community Requests: the reverse direction of blood_requests -- a donor
+-- broadcasts that they (or someone they know) needs blood, instead of a
+-- hospital creating the request.
+CREATE TABLE donor_requests (
+    donor_request_id  SERIAL PRIMARY KEY,
+    donor_id          INTEGER NOT NULL REFERENCES donors(donor_id),
+    blood_group_id    INTEGER NOT NULL REFERENCES blood_groups(blood_group_id),
+    units_needed      INTEGER NOT NULL CHECK (units_needed > 0),
+    urgency           VARCHAR(10) NOT NULL DEFAULT 'medium'
+                          CHECK (urgency IN ('low','medium','high','emergency')),
+    reason            TEXT,
+    status            VARCHAR(20) NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending','accepted','fulfilled','cancelled')),
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- A hospital's reply to a donor_request. UNIQUE(donor_request_id,
+-- hospital_id) keeps one response per hospital; the partial unique index
+-- below (rather than a trigger) keeps at most one 'accepted' response per
+-- request, since Postgres can express "unique among a subset of rows"
+-- directly as an index predicate.
+CREATE TABLE donor_request_responses (
+    response_id        SERIAL PRIMARY KEY,
+    donor_request_id   INTEGER NOT NULL REFERENCES donor_requests(donor_request_id) ON DELETE CASCADE,
+    hospital_id         INTEGER NOT NULL REFERENCES hospitals(hospital_id),
+    status               VARCHAR(10) NOT NULL CHECK (status IN ('accepted','declined')),
+    responded_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (donor_request_id, hospital_id)
+);
+
+CREATE UNIQUE INDEX idx_donor_request_responses_one_accepted
+    ON donor_request_responses (donor_request_id)
+    WHERE status = 'accepted';
