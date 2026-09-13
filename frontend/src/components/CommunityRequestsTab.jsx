@@ -17,11 +17,7 @@ const statusBadge = { pending: 'warning', accepted: 'success', fulfilled: 'succe
 
 export default function CommunityRequestsTab() {
   const { role } = useAuth();
-
-  if (role === 'hospital') {
-    return <p className="text-sm text-muted-foreground">Community requests for hospitals are coming soon.</p>;
-  }
-  return <DonorCommunityView />;
+  return role === 'hospital' ? <HospitalCommunityView /> : <DonorCommunityView />;
 }
 
 function DonorCommunityView() {
@@ -182,6 +178,132 @@ function DonorCommunityView() {
                   </TableCell>
                   <TableCell>{r.accepted_hospital_name || '--'}</TableCell>
                   <TableCell>{new Date(r.created_at).toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HospitalCommunityView() {
+  const [bloodGroups, setBloodGroups] = useState([]);
+  const [bloodGroupFilter, setBloodGroupFilter] = useState('all');
+  const [open, setOpen] = useState([]);
+  const [communityUpdates, setCommunityUpdates] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadAll(filter) {
+    setLoading(true);
+    try {
+      const [bg, requests, notifications] = await Promise.all([
+        api.bloodGroups(),
+        donorRequestApi.open(filter && filter !== 'all' ? filter : null),
+        api.notifications(),
+      ]);
+      setBloodGroups(bg);
+      setOpen(requests);
+      setCommunityUpdates(notifications.filter((n) => n.notification_type === 'donor_request_created'));
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAll(bloodGroupFilter);
+  }, [bloodGroupFilter]);
+
+  async function respond(id, status) {
+    try {
+      await donorRequestApi.respond(id, status);
+      toast.success(`Request ${status}.`);
+      loadAll(bloodGroupFilter);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
+  return (
+    <section>
+      <div className="mb-6">
+        <span className="mb-1 block text-xs font-bold tracking-widest text-brand-accent-dark uppercase">Community</span>
+        <h2 className="text-2xl font-bold">Donors asking for help</h2>
+      </div>
+
+      {communityUpdates.length > 0 && (
+        <Card className="mb-6 gap-2 border-none bg-gradient-to-br from-brand-navy to-brand-accent-dark py-4 text-white shadow-md">
+          <CardContent className="px-5">
+            <div className="mb-2 flex items-center gap-3">
+              <IconBadge>
+                <Bell />
+              </IconBadge>
+              <h3 className="text-sm font-bold tracking-wide uppercase">Community updates</h3>
+            </div>
+            <ul className="space-y-1 text-sm text-white/90">
+              {communityUpdates.map((n) => (
+                <li key={n.notification_id}>{n.message}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-sm text-muted-foreground">Filter by blood group:</span>
+        <Select value={bloodGroupFilter} onValueChange={setBloodGroupFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All groups</SelectItem>
+            {bloodGroups.map((bg) => (
+              <SelectItem key={bg.blood_group_id} value={String(bg.blood_group_id)}>
+                {bg.group_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {loading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : open.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No open community requests right now.</p>
+      ) : (
+        <div className="overflow-hidden rounded-lg border shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead>Donor</TableHead>
+                <TableHead>Blood group</TableHead>
+                <TableHead>Units</TableHead>
+                <TableHead>Urgency</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead>Posted</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {open.map((r) => (
+                <TableRow key={r.donor_request_id}>
+                  <TableCell>{r.donor_name}</TableCell>
+                  <TableCell>{r.blood_group}</TableCell>
+                  <TableCell>{r.units_needed}</TableCell>
+                  <TableCell>
+                    <UrgencyBadge urgency={r.urgency} />
+                  </TableCell>
+                  <TableCell className="whitespace-normal">{r.reason || '--'}</TableCell>
+                  <TableCell>{new Date(r.created_at).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => respond(r.donor_request_id, 'accepted')}>Accept</Button>
+                      <Button size="sm" variant="outline" onClick={() => respond(r.donor_request_id, 'declined')}>Decline</Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
