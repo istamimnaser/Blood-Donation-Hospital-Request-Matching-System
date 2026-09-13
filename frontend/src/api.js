@@ -72,6 +72,8 @@ export const donorApi = {
 
   updateMe: (body) =>
     request('/donors/me', { method: 'PATCH', body: JSON.stringify(body) }),
+
+  openRequests: () => request('/blood-requests/open'),
 };
 
 export const hospitalApi = {
@@ -95,11 +97,36 @@ export const matchApi = {
   create: (body) =>
     request('/matches', { method: 'POST', body: JSON.stringify(body) }),
 
+  selfNominate: (requestId) =>
+    request('/matches/self-nominate', {
+      method: 'POST',
+      body: JSON.stringify({ request_id: requestId }),
+    }),
+
   respond: (matchId, status) =>
     request(`/matches/${matchId}/respond`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+};
+
+export const donorRequestApi = {
+  mine: () => request('/donor-requests/mine'),
+
+  open: (bloodGroupId) =>
+    request(`/donor-requests${bloodGroupId ? `?blood_group_id=${bloodGroupId}` : ''}`),
+
+  create: (body) =>
+    request('/donor-requests', { method: 'POST', body: JSON.stringify(body) }),
+
+  respond: (donorRequestId, status) =>
+    request(`/donor-requests/${donorRequestId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    }),
+
+  fulfill: (donorRequestId) =>
+    request(`/donor-requests/${donorRequestId}/fulfill`, { method: 'POST' }),
 };
 
 export const api = {
