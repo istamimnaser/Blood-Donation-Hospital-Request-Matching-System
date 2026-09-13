@@ -23,8 +23,8 @@ const AUTH_PAGES = {
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'community', label: 'Community Requests', Component: CommunityRequestsTab },
   { id: 'compatibility', label: 'Compatibility', Component: CompatibilityTab },
+  { id: 'community', label: 'Community Requests', Component: CommunityRequestsTab },
   { id: 'reports', label: 'Reports', Component: ReportsTab },
   { id: 'notifications', label: 'Notifications', Component: NotificationsTab },
   { id: 'audit', label: 'Audit Log', Component: AuditLogTab },

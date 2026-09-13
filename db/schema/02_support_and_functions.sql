@@ -54,6 +54,7 @@ CREATE INDEX idx_notifications_recipient ON notifications(recipient_type, recipi
 CREATE INDEX idx_audit_logs_table_record ON audit_logs(table_name, record_id);
 CREATE INDEX idx_donor_requests_status ON donor_requests(status);
 CREATE INDEX idx_donor_requests_donor ON donor_requests(donor_id);
+CREATE INDEX idx_donor_requests_blood_group ON donor_requests(blood_group_id);
 CREATE INDEX idx_donor_request_responses_request ON donor_request_responses(donor_request_id);
 
 -- Functions

@@ -192,19 +192,22 @@ function HospitalCommunityView() {
   const [bloodGroups, setBloodGroups] = useState([]);
   const [bloodGroupFilter, setBloodGroupFilter] = useState('all');
   const [open, setOpen] = useState([]);
+  const [accepted, setAccepted] = useState([]);
   const [communityUpdates, setCommunityUpdates] = useState([]);
   const [loading, setLoading] = useState(true);
 
   async function loadAll(filter) {
     setLoading(true);
     try {
-      const [bg, requests, notifications] = await Promise.all([
+      const [bg, requests, acceptedByMe, notifications] = await Promise.all([
         api.bloodGroups(),
         donorRequestApi.open(filter && filter !== 'all' ? filter : null),
+        donorRequestApi.acceptedByMe(),
         api.notifications(),
       ]);
       setBloodGroups(bg);
       setOpen(requests);
+      setAccepted(acceptedByMe);
       setCommunityUpdates(notifications.filter((n) => n.notification_type === 'donor_request_created'));
     } catch (err) {
       toast.error(err.message);
@@ -221,6 +224,16 @@ function HospitalCommunityView() {
     try {
       await donorRequestApi.respond(id, status);
       toast.success(`Request ${status}.`);
+      loadAll(bloodGroupFilter);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
+  async function fulfill(id) {
+    try {
+      await donorRequestApi.fulfill(id);
+      toast.success('Marked fulfilled.');
       loadAll(bloodGroupFilter);
     } catch (err) {
       toast.error(err.message);
@@ -303,6 +316,42 @@ function HospitalCommunityView() {
                       <Button size="sm" onClick={() => respond(r.donor_request_id, 'accepted')}>Accept</Button>
                       <Button size="sm" variant="outline" onClick={() => respond(r.donor_request_id, 'declined')}>Decline</Button>
                     </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <h3 className="mt-8 mb-3 text-lg font-bold">Accepted by you, awaiting fulfillment</h3>
+      {accepted.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nothing here yet.</p>
+      ) : (
+        <div className="overflow-hidden rounded-lg border shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead>Donor</TableHead>
+                <TableHead>Blood group</TableHead>
+                <TableHead>Units</TableHead>
+                <TableHead>Urgency</TableHead>
+                <TableHead>Accepted</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {accepted.map((r) => (
+                <TableRow key={r.donor_request_id}>
+                  <TableCell>{r.donor_name}</TableCell>
+                  <TableCell>{r.blood_group}</TableCell>
+                  <TableCell>{r.units_needed}</TableCell>
+                  <TableCell>
+                    <UrgencyBadge urgency={r.urgency} />
+                  </TableCell>
+                  <TableCell>{new Date(r.responded_at).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Button size="sm" onClick={() => fulfill(r.donor_request_id)}>Mark fulfilled</Button>
                   </TableCell>
                 </TableRow>
               ))}

@@ -64,10 +64,35 @@ router.get('/', requireAuth('hospital'), async (req, res, next) => {
   }
 });
 
+// The community requests a hospital has already accepted, still awaiting
+// sp_fulfill_donor_request -- backs the "mark fulfilled" action in the
+// hospital's Community Requests view.
+router.get('/accepted-by-me', requireAuth('hospital'), async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT dr.donor_request_id, d.full_name AS donor_name, bg.group_name AS blood_group,
+              dr.units_needed, dr.urgency, dr.reason, resp.responded_at
+       FROM donor_request_responses resp
+       JOIN donor_requests dr ON dr.donor_request_id = resp.donor_request_id
+       JOIN donors d ON d.donor_id = dr.donor_id
+       JOIN blood_groups bg ON bg.blood_group_id = dr.blood_group_id
+       WHERE resp.hospital_id = $1 AND resp.status = 'accepted' AND dr.status = 'accepted'
+       ORDER BY resp.responded_at DESC`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Hospital accepts or declines a donor_request. trg_check_donor_request_open
 // rejects this (as a 400, via the P0001 exception) once the request is no
 // longer pending; trg_apply_donor_request_response then moves an accepted
-// request's status and notifies the donor.
+// request's status and notifies the donor. ON CONFLICT DO NOTHING + the
+// explicit 409 turns a same-hospital double-response (which the
+// UNIQUE(donor_request_id, hospital_id) constraint would otherwise reject
+// as a raw duplicate-key error) into a clean API response.
 router.post('/:id/respond', requireAuth('hospital'), async (req, res, next) => {
   try {
     const { status } = req.body;
@@ -78,10 +103,35 @@ router.post('/:id/respond', requireAuth('hospital'), async (req, res, next) => {
     const { rows } = await pool.query(
       `INSERT INTO donor_request_responses (donor_request_id, hospital_id, status)
        VALUES ($1, $2, $3)
-       RETURNING response_id, donor_request_id, hospital_id, status, responded_at`,
+       ON CONFLICT (donor_request_id, hospital_id) DO NOTHING
+       RETURNING *`,
       [req.params.id, req.user.id, status]
     );
+    if (!rows[0]) {
+      return res.status(409).json({ error: 'Already responded to this request' });
+    }
     res.status(201).json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// CALLs sp_fulfill_donor_request(), the sp_record_donation-equivalent
+// completion step -- only the hospital whose response was accepted can
+// close it out.
+router.post('/:id/fulfill', requireAuth('hospital'), async (req, res, next) => {
+  try {
+    const accepted = await pool.query(
+      `SELECT 1 FROM donor_request_responses
+       WHERE donor_request_id = $1 AND hospital_id = $2 AND status = 'accepted'`,
+      [req.params.id, req.user.id]
+    );
+    if (!accepted.rows[0]) {
+      return res.status(404).json({ error: 'No accepted response from this hospital for that request' });
+    }
+
+    await pool.query('CALL sp_fulfill_donor_request($1)', [req.params.id]);
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
