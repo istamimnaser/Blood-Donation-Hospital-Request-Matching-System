@@ -87,6 +87,68 @@ CREATE TRIGGER trg_notify_new_match
 AFTER INSERT ON request_matches
 FOR EACH ROW EXECUTE FUNCTION fn_notify_new_match();
 
+-- Notify every hospital when a donor broadcasts a community request --
+-- there's no single "owning" hospital to target like there is for
+-- trg_notify_emergency_request, so this fans out one notification per
+-- hospital instead.
+CREATE OR REPLACE FUNCTION fn_notify_donor_request() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO notifications (recipient_type, recipient_id, donor_request_id, notification_type, message)
+    SELECT 'hospital', h.hospital_id, NEW.donor_request_id, 'donor_request_created',
+           (SELECT full_name FROM donors WHERE donor_id = NEW.donor_id) || ' needs ' ||
+           NEW.units_needed || ' unit(s) of ' ||
+           (SELECT group_name FROM blood_groups WHERE blood_group_id = NEW.blood_group_id) || '.'
+    FROM hospitals h;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_notify_donor_request
+AFTER INSERT ON donor_requests
+FOR EACH ROW EXECUTE FUNCTION fn_notify_donor_request();
+
+-- A hospital may only accept/decline a donor_request that's still pending;
+-- trg_apply_donor_request_response below is what moves it out of 'pending'.
+CREATE OR REPLACE FUNCTION fn_check_donor_request_open() RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM donor_requests WHERE donor_request_id = NEW.donor_request_id AND status = 'pending'
+    ) THEN
+        RAISE EXCEPTION 'Donor request % is not open for responses', NEW.donor_request_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_donor_request_open
+BEFORE INSERT ON donor_request_responses
+FOR EACH ROW EXECUTE FUNCTION fn_check_donor_request_open();
+
+-- When a hospital accepts a donor_request, move it out of 'pending' and
+-- notify the donor. uq_donor_request_responses_one_accepted (partial unique
+-- index) guarantees at most one accepted response ever reaches this trigger.
+CREATE OR REPLACE FUNCTION fn_apply_donor_request_response() RETURNS TRIGGER AS $$
+DECLARE
+    v_donor_id INTEGER;
+BEGIN
+    UPDATE donor_requests
+       SET status = 'accepted'
+     WHERE donor_request_id = NEW.donor_request_id
+    RETURNING donor_id INTO v_donor_id;
+
+    INSERT INTO notifications (recipient_type, recipient_id, donor_request_id, notification_type, message)
+    VALUES ('donor', v_donor_id, NEW.donor_request_id, 'donor_request_response',
+            (SELECT name FROM hospitals WHERE hospital_id = NEW.hospital_id) ||
+            ' has responded to your blood request.');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_apply_donor_request_response
+AFTER INSERT ON donor_request_responses
+FOR EACH ROW WHEN (NEW.status = 'accepted')
+EXECUTE FUNCTION fn_apply_donor_request_response();
+
 -- recipient_id is polymorphic (donor_id or hospital_id depending on
 -- recipient_type), which a foreign key can't express directly.
 CREATE OR REPLACE FUNCTION fn_validate_notification_recipient() RETURNS TRIGGER AS $$
@@ -148,3 +210,11 @@ FOR EACH ROW EXECUTE FUNCTION fn_audit_row_change('donation_id');
 CREATE TRIGGER trg_audit_request_matches
 AFTER INSERT OR UPDATE OR DELETE ON request_matches
 FOR EACH ROW EXECUTE FUNCTION fn_audit_row_change('match_id');
+
+CREATE TRIGGER trg_audit_donor_requests
+AFTER INSERT OR UPDATE OR DELETE ON donor_requests
+FOR EACH ROW EXECUTE FUNCTION fn_audit_row_change('donor_request_id');
+
+CREATE TRIGGER trg_audit_donor_request_responses
+AFTER INSERT OR UPDATE OR DELETE ON donor_request_responses
+FOR EACH ROW EXECUTE FUNCTION fn_audit_row_change('response_id');

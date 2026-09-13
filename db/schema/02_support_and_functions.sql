@@ -20,8 +20,12 @@ CREATE TABLE notifications (
     recipient_id         INTEGER NOT NULL,
     request_id          INTEGER REFERENCES blood_requests(request_id) ON DELETE CASCADE,
     match_id            INTEGER REFERENCES request_matches(match_id) ON DELETE CASCADE,
+    donor_request_id    INTEGER REFERENCES donor_requests(donor_request_id) ON DELETE CASCADE,
     notification_type   VARCHAR(30) NOT NULL
-                             CHECK (notification_type IN ('request_created','match_suggested','donation_confirmed')),
+                             CHECK (notification_type IN (
+                                 'request_created','match_suggested','donation_confirmed',
+                                 'donor_request_created','donor_request_response'
+                             )),
     message              TEXT NOT NULL,
     is_read              BOOLEAN NOT NULL DEFAULT FALSE,
     created_at            TIMESTAMP NOT NULL DEFAULT NOW()
@@ -48,6 +52,9 @@ CREATE INDEX idx_donations_donor ON donations(donor_id);
 CREATE INDEX idx_donor_availability_donor ON donor_availability(donor_id);
 CREATE INDEX idx_notifications_recipient ON notifications(recipient_type, recipient_id);
 CREATE INDEX idx_audit_logs_table_record ON audit_logs(table_name, record_id);
+CREATE INDEX idx_donor_requests_status ON donor_requests(status);
+CREATE INDEX idx_donor_requests_donor ON donor_requests(donor_id);
+CREATE INDEX idx_donor_request_responses_request ON donor_request_responses(donor_request_id);
 
 -- Functions
 

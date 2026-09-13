@@ -30,6 +30,19 @@ BEGIN
 END;
 $$;
 
+-- Marks an accepted donor_request as fulfilled once the hospital has
+-- actually supplied the blood. Kept as its own procedure (rather than a
+-- trigger) since there's no companion "donation" row to hang an AFTER
+-- INSERT trigger off of the way sp_record_donation/fn_apply_donation do.
+CREATE OR REPLACE PROCEDURE sp_fulfill_donor_request(p_donor_request_id INTEGER)
+LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE donor_requests
+       SET status = 'fulfilled'
+     WHERE donor_request_id = p_donor_request_id AND status = 'accepted';
+END;
+$$;
+
 -- Reporting views
 CREATE VIEW v_pending_emergency_requests AS
 SELECT r.request_id, h.name AS hospital_name, l.city, l.area,
