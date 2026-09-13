@@ -35,6 +35,38 @@ router.post('/', requireAuth('hospital'), async (req, res, next) => {
   }
 });
 
+// Open hospital requests this donor is eligible to self-nominate for --
+// the symmetric view of fn_eligible_donors, from the donor's side. Applies
+// the same compatibility/availability/90-day filters inline rather than a
+// new SQL function, matching this file's existing thin-route style (the
+// hospital side already gets fn_eligible_donors because ranking a pool of
+// donors is genuinely reusable logic; here it's a single WHERE clause).
+router.get('/open', requireAuth('donor'), async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.request_id, h.name AS hospital_name, bg.group_name AS blood_group,
+              r.units_needed, r.units_fulfilled, r.urgency, r.status, r.needed_by, r.created_at
+       FROM blood_requests r
+       JOIN hospitals h ON h.hospital_id = r.hospital_id
+       JOIN blood_groups bg ON bg.blood_group_id = r.blood_group_id
+       JOIN blood_compatibility bc ON bc.recipient_blood_group_id = r.blood_group_id
+       JOIN donors d ON d.blood_group_id = bc.donor_blood_group_id
+       WHERE d.donor_id = $1
+         AND d.is_available = TRUE
+         AND (d.last_donation_date IS NULL OR d.last_donation_date <= CURRENT_DATE - INTERVAL '90 days')
+         AND r.status IN ('pending', 'partially_fulfilled')
+         AND NOT EXISTS (
+             SELECT 1 FROM request_matches m WHERE m.request_id = r.request_id AND m.donor_id = $1
+         )
+       ORDER BY r.urgency = 'emergency' DESC, r.created_at`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Wraps fn_eligible_donors(): compatible blood group, available, past the
 // 90-day rest period, ranked by same-location / exact-group match.
 router.get('/:id/eligible-donors', requireAuth('hospital'), async (req, res, next) => {
