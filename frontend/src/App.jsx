@@ -14,6 +14,7 @@ import NotificationsTab from './components/NotificationsTab.jsx';
 import AuditLogTab from './components/AuditLogTab.jsx';
 import CompatibilityTab from './components/CompatibilityTab.jsx';
 import CommunityRequestsTab from './components/CommunityRequestsTab.jsx';
+import BloodBankTab from './components/BloodBankTab.jsx';
 
 const AUTH_PAGES = {
   login: LoginPage,
@@ -23,6 +24,7 @@ const AUTH_PAGES = {
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'bloodbank', label: 'Blood Bank', Component: BloodBankTab, role: 'hospital' },
   { id: 'compatibility', label: 'Compatibility', Component: CompatibilityTab },
   { id: 'community', label: 'Community Requests', Component: CommunityRequestsTab },
   { id: 'reports', label: 'Reports', Component: ReportsTab },
@@ -96,9 +98,11 @@ function AppShell() {
     );
   }
 
+  const visibleTabs = TABS.filter((t) => !t.role || t.role === role);
+
   const Active = activeTab === 'dashboard'
     ? (role === 'donor' ? DonorDashboard : HospitalDashboard)
-    : TABS.find((t) => t.id === activeTab).Component;
+    : (visibleTabs.find((t) => t.id === activeTab) || visibleTabs[0]).Component;
 
   return (
     <>
@@ -106,7 +110,7 @@ function AppShell() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="flex items-center gap-4">
             <TabsList variant="line" className="h-auto gap-6 bg-transparent p-0">
-              {TABS.map((t) => (
+              {visibleTabs.map((t) => (
                 <TabsTrigger key={t.id} value={t.id} className={navTriggerClass}>
                   {t.label}
                 </TabsTrigger>

@@ -45,6 +45,23 @@ INSERT INTO donor_requests (donor_id, blood_group_id, units_needed, urgency, rea
     ((SELECT donor_id FROM donors WHERE full_name = 'Kamal Hossain'), (SELECT blood_group_id FROM blood_groups WHERE group_name = 'A+'), 2, 'high', 'Scheduled surgery next week, need standby donors.', 'pending'),
     ((SELECT donor_id FROM donors WHERE full_name = 'Sadia Rahman'), (SELECT blood_group_id FROM blood_groups WHERE group_name = 'B+'), 1, 'emergency', 'Family member hospitalized, urgent need.', 'pending');
 
+-- Blood bank: the O+ donation above already banked 1 unit for DMCH via
+-- trg_bloodbank_add_from_donation. Add a few manual entries (external
+-- supply) so both hospitals start with a non-trivial inventory.
+DO $$
+DECLARE
+    v_dmch    INTEGER := (SELECT hospital_id FROM hospitals WHERE name = 'Dhaka Medical College Hospital');
+    v_square  INTEGER := (SELECT hospital_id FROM hospitals WHERE name = 'Square Hospital');
+    v_o_neg   INTEGER := (SELECT blood_group_id FROM blood_groups WHERE group_name = 'O-');
+    v_a_pos   INTEGER := (SELECT blood_group_id FROM blood_groups WHERE group_name = 'A+');
+    v_b_pos   INTEGER := (SELECT blood_group_id FROM blood_groups WHERE group_name = 'B+');
+BEGIN
+    CALL sp_bloodbank_add_stock(v_dmch, v_o_neg, 4, 'External supply');
+    CALL sp_bloodbank_add_stock(v_dmch, v_a_pos, 2, 'External supply');
+    CALL sp_bloodbank_add_stock(v_square, v_a_pos, 5, 'External supply');
+    CALL sp_bloodbank_add_stock(v_square, v_b_pos, 3, 'External supply');
+END $$;
+
 -- One of the two above already has a hospital response, to seed the
 -- "accepted" flow (trg_apply_donor_request_response moves it out of pending
 -- and notifies the donor).

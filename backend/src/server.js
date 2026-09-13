@@ -49,6 +49,7 @@ app.use('/api/blood-requests', require('./routes/bloodRequests'));
 app.use('/api/donor-requests', require('./routes/donorRequests'));
 app.use('/api/matches', require('./routes/matches'));
 app.use('/api/donations', require('./routes/donations'));
+app.use('/api/bloodbank', require('./routes/bloodbank'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/audit-logs', require('./routes/auditLogs'));

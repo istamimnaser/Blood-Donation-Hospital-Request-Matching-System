@@ -20,11 +20,6 @@ router.post('/signup/donor', async (req, res, next) => {
       return res.status(400).json({ error: 'full_name, email, password, phone, blood_group_id, and location_id are required' });
     }
 
-    if (!full_name || !email || !password || !phone || !blood_group_id || !location_id) {
-  return res.status(400).json({ error: 'full_name, email, password, phone, blood_group_id, and location_id are required' });
-}
-
-
     if (!date_of_birth) {
     return res.status(400).json({ error: 'Date of birth is required' });
     }

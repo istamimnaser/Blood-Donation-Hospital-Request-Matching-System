@@ -131,6 +131,18 @@ export const donorRequestApi = {
     request(`/donor-requests/${donorRequestId}/fulfill`, { method: 'POST' }),
 };
 
+export const bloodbankApi = {
+  mine: () => request('/bloodbank/mine'),
+
+  addStock: (body) =>
+    request('/bloodbank/stock', { method: 'POST', body: JSON.stringify(body) }),
+
+  withdraw: (body) =>
+    request('/bloodbank/withdraw', { method: 'POST', body: JSON.stringify(body) }),
+
+  transactions: () => request('/bloodbank/transactions'),
+};
+
 export const api = {
   health: () => request('/health'),
 

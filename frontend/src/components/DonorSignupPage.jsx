@@ -34,8 +34,6 @@ useEffect(() => {
         api.locations()
       ]);
 
-      console.log("locations:", locationsData);
-
       setBloodGroups(bloodGroupsData);
       setLocations(locationsData);
     } catch (err) {

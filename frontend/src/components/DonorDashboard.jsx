@@ -120,6 +120,11 @@ export default function DonorDashboard() {
               {profile.is_available ? 'Available' : 'Unavailable'}
             </Badge>
             Last donation: {profile.last_donation_date ? profile.last_donation_date.slice(0, 10) : 'never'}
+            <Badge variant={profile.is_eligible_now ? 'success' : 'warning'}>
+              {profile.is_eligible_now
+                ? 'Eligible to donate now'
+                : `Eligible again on ${new Date(profile.eligible_again_date).toLocaleDateString()}`}
+            </Badge>
           </p>
         </CardContent>
       </Card>
