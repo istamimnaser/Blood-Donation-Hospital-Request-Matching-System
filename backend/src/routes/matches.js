@@ -78,11 +78,16 @@ router.post('/', requireAuth('hospital'), async (req, res, next) => {
 // sp_create_match's own eligibility check (fn_eligible_donors) do the
 // actual gatekeeping. donor_id is always req.user.id from the verified
 // token, never client-supplied, so there's no id to double-check against.
+// Passes 'accepted' as sp_create_match's p_initial_status, since the donor
+// volunteering themselves has already done the "accepting" a
+// hospital-suggested match would otherwise need -- without this, the match
+// would land 'suggested' and the donor would have to separately accept
+// their own self-nomination in My Matches.
 router.post('/self-nominate', requireAuth('donor'), async (req, res, next) => {
   try {
     const { request_id } = req.body;
 
-    await pool.query('CALL sp_create_match($1, $2)', [request_id, req.user.id]);
+    await pool.query("CALL sp_create_match($1, $2, 'accepted')", [request_id, req.user.id]);
     const { rows } = await pool.query(
       `SELECT match_id, request_id, donor_id, match_status, matched_at
        FROM request_matches WHERE request_id = $1 AND donor_id = $2`,

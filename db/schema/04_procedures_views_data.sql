@@ -1,17 +1,51 @@
 -- Procedures, reporting views, and lookup data
 
+-- The 3-arg version below is a distinct overload from the original 2-arg
+-- signature (CREATE OR REPLACE matches on argument types, so it can't
+-- collapse the two) -- drop the old one explicitly so schema.sql stays
+-- safe to re-run without leaving a stale overload around, same reasoning
+-- as the fn_eligible_donors guard above.
+DROP PROCEDURE IF EXISTS sp_create_match(INTEGER, INTEGER);
+
 -- Suggests a donor for a request; rejects the call outright if the donor
 -- isn't in that request's eligible pool (see fn_eligible_donors above).
-CREATE OR REPLACE PROCEDURE sp_create_match(p_request_id INTEGER, p_donor_id INTEGER)
+-- p_initial_status defaults to 'suggested' (hospital-initiated, needs the
+-- donor's accept/decline) so existing 2-arg callers are unaffected; donor
+-- self-nomination ("I can help") passes 'accepted' since the donor is
+-- volunteering themselves and there's no one left to accept on their behalf.
+CREATE OR REPLACE PROCEDURE sp_create_match(
+    p_request_id     INTEGER,
+    p_donor_id       INTEGER,
+    p_initial_status VARCHAR DEFAULT 'suggested'
+)
 LANGUAGE plpgsql AS $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM fn_eligible_donors(p_request_id) e WHERE e.donor_id = p_donor_id) THEN
         RAISE EXCEPTION 'Donor % is not eligible for request %', p_donor_id, p_request_id;
     END IF;
 
-    INSERT INTO request_matches (request_id, donor_id)
-    VALUES (p_request_id, p_donor_id)
+    INSERT INTO request_matches (request_id, donor_id, match_status)
+    VALUES (p_request_id, p_donor_id, p_initial_status)
     ON CONFLICT (request_id, donor_id) DO NOTHING;
+END;
+$$;
+
+-- Closes out a donor_request once the hospital that accepted it has
+-- actually taken the donation -- the sp_record_donation-equivalent
+-- completion step. Kept as an explicit procedure (rather than another
+-- trigger) since there's no donations-equivalent table insert for donor
+-- initiated requests to hang a trigger off of.
+CREATE OR REPLACE PROCEDURE sp_fulfill_donor_request(p_donor_request_id INTEGER)
+LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE donor_requests
+       SET status = 'fulfilled'
+     WHERE donor_request_id = p_donor_request_id
+       AND status = 'accepted';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Donor request % is not in accepted status', p_donor_request_id;
+    END IF;
 END;
 $$;
 
@@ -27,19 +61,6 @@ LANGUAGE plpgsql AS $$
 BEGIN
     INSERT INTO donations (donor_id, request_id, units_donated, donation_date)
     VALUES (p_donor_id, p_request_id, p_units, p_donation_date);
-END;
-$$;
-
--- Marks an accepted donor_request as fulfilled once the hospital has
--- actually supplied the blood. Kept as its own procedure (rather than a
--- trigger) since there's no companion "donation" row to hang an AFTER
--- INSERT trigger off of the way sp_record_donation/fn_apply_donation do.
-CREATE OR REPLACE PROCEDURE sp_fulfill_donor_request(p_donor_request_id INTEGER)
-LANGUAGE plpgsql AS $$
-BEGIN
-    UPDATE donor_requests
-       SET status = 'fulfilled'
-     WHERE donor_request_id = p_donor_request_id AND status = 'accepted';
 END;
 $$;
 
