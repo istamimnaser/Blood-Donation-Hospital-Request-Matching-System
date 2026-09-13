@@ -6,7 +6,11 @@ router.get('/me', requireAuth('donor'), async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT d.donor_id, d.full_name, d.email, d.phone, d.blood_group_id, bg.group_name AS blood_group,
-              d.location_id, l.city, l.area, d.date_of_birth, d.is_available, d.last_donation_date, d.created_at
+              d.location_id, l.city, l.area, d.date_of_birth, d.is_available, d.last_donation_date, d.created_at,
+              (d.last_donation_date + INTERVAL '90 days')::date AS eligible_again_date,
+              -- Mirrors fn_eligible_donors' rest-period condition
+              -- (db/schema/02_support_and_functions.sql) -- keep both in sync.
+              (d.last_donation_date IS NULL OR d.last_donation_date <= CURRENT_DATE - INTERVAL '90 days') AS is_eligible_now
        FROM donors d
        JOIN blood_groups bg ON bg.blood_group_id = d.blood_group_id
        JOIN locations l ON l.location_id = d.location_id
