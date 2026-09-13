@@ -73,12 +73,34 @@ AFTER INSERT ON blood_requests
 FOR EACH ROW WHEN (NEW.urgency = 'emergency')
 EXECUTE FUNCTION fn_notify_emergency_request();
 
--- Notify the donor whenever they're suggested for a request.
+-- Notify the donor whenever they're suggested for a request -- but not when
+-- the donor initiated the match themselves (self-nomination, which lands
+-- with match_status = 'accepted' straight away instead of 'suggested'; see
+-- sp_create_match's p_initial_status). They already know they volunteered,
+-- so the hospital gets notified instead, since they're the ones who didn't
+-- know until now.
 CREATE OR REPLACE FUNCTION fn_notify_new_match() RETURNS TRIGGER AS $$
+DECLARE
+    v_hospital_id INTEGER;
+    v_donor_name  VARCHAR;
+    v_blood_group VARCHAR;
 BEGIN
-    INSERT INTO notifications (recipient_type, recipient_id, request_id, match_id, notification_type, message)
-    VALUES ('donor', NEW.donor_id, NEW.request_id, NEW.match_id, 'match_suggested',
-            'You have been matched to a blood request.');
+    IF NEW.match_status = 'suggested' THEN
+        INSERT INTO notifications (recipient_type, recipient_id, request_id, match_id, notification_type, message)
+        VALUES ('donor', NEW.donor_id, NEW.request_id, NEW.match_id, 'match_suggested',
+                'You have been matched to a blood request.');
+    ELSE
+        SELECT r.hospital_id, bg.group_name INTO v_hospital_id, v_blood_group
+        FROM blood_requests r
+        JOIN blood_groups bg ON bg.blood_group_id = r.blood_group_id
+        WHERE r.request_id = NEW.request_id;
+
+        SELECT full_name INTO v_donor_name FROM donors WHERE donor_id = NEW.donor_id;
+
+        INSERT INTO notifications (recipient_type, recipient_id, request_id, match_id, notification_type, message)
+        VALUES ('hospital', v_hospital_id, NEW.request_id, NEW.match_id, 'match_suggested',
+                v_donor_name || ' has volunteered to help with your ' || v_blood_group || ' request.');
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
