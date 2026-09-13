@@ -148,3 +148,56 @@ FOR EACH ROW EXECUTE FUNCTION fn_audit_row_change('donation_id');
 CREATE TRIGGER trg_audit_request_matches
 AFTER INSERT OR UPDATE OR DELETE ON request_matches
 FOR EACH ROW EXECUTE FUNCTION fn_audit_row_change('match_id');
+
+CREATE TRIGGER trg_audit_donor_requests
+AFTER INSERT OR UPDATE OR DELETE ON donor_requests
+FOR EACH ROW EXECUTE FUNCTION fn_audit_row_change('donor_request_id');
+
+CREATE TRIGGER trg_audit_donor_request_responses
+AFTER INSERT OR UPDATE OR DELETE ON donor_request_responses
+FOR EACH ROW EXECUTE FUNCTION fn_audit_row_change('response_id');
+
+-- Mirrors fn_notify_emergency_request: a donor broadcasting a request is
+-- always urgent enough to surface to every hospital (there's no per-hospital
+-- targeting to do, unlike blood_requests which already belongs to one).
+CREATE OR REPLACE FUNCTION fn_notify_donor_request() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO notifications (recipient_type, recipient_id, donor_request_id, notification_type, message)
+    SELECT 'hospital', h.hospital_id, NEW.donor_request_id, 'donor_request_created',
+           'A donor is requesting ' ||
+           (SELECT group_name FROM blood_groups WHERE blood_group_id = NEW.blood_group_id) ||
+           ' (' || NEW.units_needed || ' unit(s)).'
+    FROM hospitals h;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_notify_donor_request
+AFTER INSERT ON donor_requests
+FOR EACH ROW EXECUTE FUNCTION fn_notify_donor_request();
+
+-- When a hospital accepts a donor_request: mark it accepted (the partial
+-- unique index in 01_core_tables.sql already guarantees only one accepted
+-- response gets here) and notify the donor. Declines don't change status,
+-- so other hospitals can still respond.
+CREATE OR REPLACE FUNCTION fn_apply_donor_request_response() RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'accepted' THEN
+        UPDATE donor_requests
+           SET status = 'accepted'
+         WHERE donor_request_id = NEW.donor_request_id;
+
+        INSERT INTO notifications (recipient_type, recipient_id, donor_request_id, notification_type, message)
+        VALUES ('donor',
+                (SELECT donor_id FROM donor_requests WHERE donor_request_id = NEW.donor_request_id),
+                NEW.donor_request_id, 'donor_request_response',
+                (SELECT name FROM hospitals WHERE hospital_id = NEW.hospital_id) ||
+                ' responded to your blood request.');
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_apply_donor_request_response
+AFTER INSERT ON donor_request_responses
+FOR EACH ROW EXECUTE FUNCTION fn_apply_donor_request_response();
