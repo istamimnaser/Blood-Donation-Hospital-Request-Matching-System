@@ -39,3 +39,20 @@ BEGIN
 
     CALL sp_record_donation(v_donor_id, v_request_id, 1);
 END $$;
+
+-- Community Requests: donors broadcasting their own need for blood.
+INSERT INTO donor_requests (donor_id, blood_group_id, units_needed, urgency, reason) VALUES
+    ((SELECT donor_id FROM donors WHERE full_name = 'Sadia Rahman'), (SELECT blood_group_id FROM blood_groups WHERE group_name = 'B+'), 1, 'high', 'Scheduled surgery next week, want a backup unit on file.'),
+    ((SELECT donor_id FROM donors WHERE full_name = 'Tanvir Ahmed'), (SELECT blood_group_id FROM blood_groups WHERE group_name = 'AB+'), 2, 'medium', 'Family member undergoing treatment, checking availability nearby.');
+
+-- One of them already has a hospital response, to show the accepted flow.
+DO $$
+DECLARE
+    v_donor_request_id INTEGER;
+BEGIN
+    SELECT donor_request_id INTO v_donor_request_id FROM donor_requests
+     WHERE donor_id = (SELECT donor_id FROM donors WHERE full_name = 'Sadia Rahman');
+
+    INSERT INTO donor_request_responses (donor_request_id, hospital_id, status)
+    VALUES (v_donor_request_id, (SELECT hospital_id FROM hospitals WHERE name = 'Square Hospital'), 'accepted');
+END $$;
