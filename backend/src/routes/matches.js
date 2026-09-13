@@ -68,6 +68,32 @@ router.post('/', requireAuth('hospital'), async (req, res, next) => {
   }
 });
 
+// "I can help": a donor self-nominates for a hospital-created request,
+// rather than waiting to be suggested. Kept as its own endpoint instead of
+// relaxing POST / above to accept either role -- that handler's ownership
+// check ("does this hospital own the request") has no donor-side
+// equivalent, since a donor isn't tied to a hospital_id, so folding both
+// paths into one handler would mean branching its authorization logic on
+// role. A separate route keeps requireAuth single-role and lets
+// sp_create_match's own eligibility check (fn_eligible_donors) do the
+// actual gatekeeping. donor_id is always req.user.id from the verified
+// token, never client-supplied, so there's no id to double-check against.
+router.post('/self-nominate', requireAuth('donor'), async (req, res, next) => {
+  try {
+    const { request_id } = req.body;
+
+    await pool.query('CALL sp_create_match($1, $2)', [request_id, req.user.id]);
+    const { rows } = await pool.query(
+      `SELECT match_id, request_id, donor_id, match_status, matched_at
+       FROM request_matches WHERE request_id = $1 AND donor_id = $2`,
+      [request_id, req.user.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Donor accepts or declines a match they were suggested for.
 router.patch('/:id/respond', requireAuth('donor'), async (req, res, next) => {
   try {

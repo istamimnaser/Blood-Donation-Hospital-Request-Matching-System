@@ -35,6 +35,37 @@ router.post('/', requireAuth('hospital'), async (req, res, next) => {
   }
 });
 
+// The donor-side mirror of fn_eligible_donors(): open requests the logged-in
+// donor is eligible for (compatible group, available, past the 90-day rest
+// period), that they haven't already been matched to. Backs the "I can
+// help" self-nomination button on the donor dashboard.
+router.get('/open-for-me', requireAuth('donor'), async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.request_id, h.name AS hospital_name, l.city, l.area,
+              bg.group_name AS blood_group, r.units_needed, r.units_fulfilled,
+              r.urgency, r.status, r.needed_by, r.created_at
+       FROM blood_requests r
+       JOIN hospitals h ON h.hospital_id = r.hospital_id
+       JOIN locations l ON l.location_id = h.location_id
+       JOIN blood_groups bg ON bg.blood_group_id = r.blood_group_id
+       JOIN blood_compatibility bc ON bc.recipient_blood_group_id = r.blood_group_id
+       JOIN donors d ON d.donor_id = $1 AND d.blood_group_id = bc.donor_blood_group_id
+       WHERE r.status IN ('pending', 'partially_fulfilled')
+         AND d.is_available = TRUE
+         AND (d.last_donation_date IS NULL OR d.last_donation_date <= CURRENT_DATE - INTERVAL '90 days')
+         AND NOT EXISTS (
+             SELECT 1 FROM request_matches m WHERE m.request_id = r.request_id AND m.donor_id = $1
+         )
+       ORDER BY (r.urgency = 'emergency') DESC, r.created_at`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Wraps fn_eligible_donors(): compatible blood group, available, past the
 // 90-day rest period, ranked by same-location / exact-group match.
 router.get('/:id/eligible-donors', requireAuth('hospital'), async (req, res, next) => {
