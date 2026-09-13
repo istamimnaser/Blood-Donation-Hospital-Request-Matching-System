@@ -195,6 +195,16 @@ function HospitalView() {
     load();
   }, []);
 
+  async function respond(donorRequestId, status) {
+    try {
+      await donorRequestApi.respond(donorRequestId, status);
+      toast.success(status === 'accepted' ? 'Accepted -- the donor has been notified.' : 'Declined.');
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
   return (
     <>
       <h3 className="mb-3 text-lg font-bold">Open community requests</h3>
@@ -213,6 +223,7 @@ function HospitalView() {
                 <TableHead>Urgency</TableHead>
                 <TableHead>Reason</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -226,6 +237,20 @@ function HospitalView() {
                   </TableCell>
                   <TableCell className="whitespace-normal">{r.reason || '-'}</TableCell>
                   <TableCell>{new Date(r.created_at).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => respond(r.donor_request_id, 'accepted')}>
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => respond(r.donor_request_id, 'declined')}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
